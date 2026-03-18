@@ -38,9 +38,14 @@ shopify-agent/
 │   ├── templates/
 │   │   └── checkout.html           # Checkout UI (embeds Shop Pay client SDK)
 │   │
-│   └── webhooks/
-│       ├── __init__.py
-│       └── handler.py              # verify_webhook(), handle_payment_event()
+│   ├── webhooks/
+│   │   ├── __init__.py
+│   │   └── handler.py              # verify_webhook(), handle_payment_event()
+│   │
+│   └── agent/
+│       ├── __init__.py             # Re-exports protocol + message models
+│       ├── shopify_agent.py        # Agent entry point — creates Agent, includes protocol, runs
+│       └── chat_protocol.py        # Protocol + message models + on_message handlers
 │
 ├── claude/
 │   └── CLAUDE.md                   # Session notes / architecture (this file)
@@ -84,3 +89,42 @@ Register `POST /webhooks/payment` in your Shopify Partner Dashboard for topics:
 - `SHOPIFY_STOREFRONT_ACCESS_TOKEN` — Storefront API access token
 - `SHOPIFY_API_VERSION` — e.g. 2024-10
 - `SHOPIFY_WEBHOOK_SECRET` — signing secret from Partner Dashboard (used for HMAC verification)
+
+## uAgent Integration (2026-03-18)
+
+Wrapped the Shopify payment logic in a fetch.ai uAgent so other agents can interact with it via message passing.
+
+### How it works
+1. **`chat_protocol.py`** defines a `Protocol("ShopifyPaymentProtocol")` with message models:
+   - `ShopifyRequest` — action (`create_session` | `session_status` | `submit_payment`) + payload fields
+   - `ShopifyResponse` — success flag, action echo, data dict, error string
+2. The protocol's `on_message` handler routes requests to the existing `payments/` module functions
+3. **`shopify_agent.py`** creates an `Agent`, includes the protocol, and runs on its own port (default 8001)
+
+### Running the agent
+```bash
+cd backend
+python -m agent.shopify_agent
+```
+
+### Sending a message to the agent
+Any other uAgent can send a `ShopifyRequest`:
+```python
+await ctx.send(SHOPIFY_AGENT_ADDRESS, ShopifyRequest(
+    action="create_session",
+    line_items=[{"label": "Widget", "quantity": 1, "price": "9.99", "sku": "W-01"}],
+))
+```
+
+### New files
+```
+backend/agent/
+├── __init__.py            # Re-exports protocol + message models
+├── shopify_agent.py       # Agent entry point
+└── chat_protocol.py       # Protocol, message models, handlers
+```
+
+### Config needed (.env)
+- `SHOPIFY_AGENT_SEED` — seed phrase for deterministic agent address
+- `SHOPIFY_AGENT_PORT` — port the agent listens on (default 8001)
+- `SHOPIFY_AGENT_ENDPOINT` — public endpoint for agent communication
