@@ -6,7 +6,6 @@ from .idempotency import generate_source_identifier
 load_dotenv()
 
 SHOP_PAY_CLIENT_ID = os.getenv("SHOP_PAY_CLIENT_ID", "")
-SHOP_ID = os.getenv("SHOP_ID", "")
 SHOPIFY_STORE_DOMAIN = os.getenv("SHOPIFY_STORE_DOMAIN", "")
 
 
@@ -14,7 +13,6 @@ def get_frontend_config() -> dict:
     
     return {
         "shop_pay_client_id": SHOP_PAY_CLIENT_ID,
-        "shop_id": SHOP_ID,
         "store_domain": SHOPIFY_STORE_DOMAIN,
     }
 

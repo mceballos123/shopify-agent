@@ -7,7 +7,8 @@ from pydantic import BaseModel
 from payments.auth import get_frontend_config
 from payments.callback import handle_payment_callback
 from payments.client import ShopPayAPIError
-from payments.session import get_or_create_payment_session
+from payments.session import get_or_create_payment_session, submit_payment
+from payments.store import get_session
 from webhooks.handler import handle_payment_event, verify_webhook
 
 app = FastAPI(title="Shop Pay Integration")
@@ -22,6 +23,12 @@ class SessionRequest(BaseModel):
     line_items: list[dict] | None = None
     # Sent by the client on page refresh to resume an existing session
     source_identifier: str | None = None
+
+
+class SubmitRequest(BaseModel):
+    session_token: str
+    line_items: list[dict] | None = None
+    idempotency_key: str | None = None
 
 
 # ── Routes ───────────────────────────────────────────────────────────────────
@@ -90,6 +97,48 @@ def payment_callback(
 ):
     redirect_url, status_code = handle_payment_callback(source_identifier)
     return RedirectResponse(url=redirect_url, status_code=status_code)
+
+
+# Serve the test dashboard UI for exercising all agent endpoints.
+@app.get("/test")
+def test_dashboard(request: Request):
+    return templates.TemplateResponse("test_dashboard.html", {"request": request})
+
+
+# Look up the current status of a payment session by source_identifier.
+@app.get("/api/session/status")
+def session_status(source_identifier: str = Query(...)):
+    record = get_session(source_identifier)
+    if record is None:
+        return JSONResponse(
+            {"detail": f"No session found for {source_identifier!r}"},
+            status_code=404,
+        )
+    return JSONResponse({
+        "source_identifier": record.source_identifier,
+        "status": record.status.value,
+        "checkout_url": record.checkout_url,
+        "token": record.token,
+    })
+
+
+# Submit/confirm a Shop Pay payment.
+@app.post("/api/payment/submit")
+def submit_payment_endpoint(body: SubmitRequest):
+    default_items = [
+        {"label": "AI Agent Monthly Plan", "quantity": 1, "price": "29.99", "sku": "AGENT-001"},
+    ]
+    line_items = body.line_items or default_items
+
+    try:
+        receipt = submit_payment(
+            session_token=body.session_token,
+            line_items=line_items,
+            idempotency_key=body.idempotency_key,
+        )
+        return JSONResponse(receipt)
+    except ShopPayAPIError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=502)
 
 
 @app.get("/health")
