@@ -18,86 +18,64 @@
       background: #161822;
       border-bottom: 1px solid #2a2d3a;
       padding: 16px 32px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      display: flex; align-items: center; gap: 12px;
     }
     header .logo {
       width: 36px; height: 36px;
-      background: #7c4dff;
-      border-radius: 8px;
+      background: #7c4dff; border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
       color: #fff; font-weight: 700; font-size: 18px;
     }
     header h1 { font-size: 18px; font-weight: 600; color: #fff; }
     header .tag {
-      margin-left: 8px;
-      font-size: 11px; font-weight: 600;
+      margin-left: 8px; font-size: 11px; font-weight: 600;
       padding: 3px 8px; border-radius: 20px;
       background: #1b5e20; color: #66bb6a;
     }
 
     .container {
-      max-width: 1100px;
-      margin: 32px auto;
-      padding: 0 24px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
+      max-width: 1100px; margin: 32px auto; padding: 0 24px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
     }
     @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
 
     .panel {
-      background: #161822;
-      border: 1px solid #2a2d3a;
-      border-radius: 12px;
-      padding: 24px;
+      background: #161822; border: 1px solid #2a2d3a;
+      border-radius: 12px; padding: 24px;
     }
     .panel h2 {
       font-size: 15px; font-weight: 600; color: #b0b8d1;
-      margin-bottom: 16px;
-      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
     }
     .panel h2 .dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      display: inline-block;
+      width: 8px; height: 8px; border-radius: 50%; display: inline-block;
     }
     .dot-green { background: #66bb6a; }
     .dot-blue  { background: #42a5f5; }
     .dot-amber { background: #ffa726; }
     .dot-red   { background: #ef5350; }
+    .dot-teal  { background: #26a69a; }
+    .dot-purple { background: #ab47bc; }
 
     label {
-      display: block;
-      font-size: 12px; font-weight: 500; color: #777;
+      display: block; font-size: 12px; font-weight: 500; color: #777;
       margin-bottom: 4px; margin-top: 12px;
     }
     label:first-of-type { margin-top: 0; }
 
     input, textarea {
-      width: 100%;
-      padding: 9px 12px;
-      background: #0f1117;
-      border: 1px solid #2a2d3a;
-      border-radius: 6px;
-      color: #e0e0e0;
-      font-size: 14px;
-      font-family: inherit;
-      outline: none;
+      width: 100%; padding: 9px 12px;
+      background: #0f1117; border: 1px solid #2a2d3a;
+      border-radius: 6px; color: #e0e0e0;
+      font-size: 14px; font-family: inherit; outline: none;
     }
     input:focus, textarea:focus { border-color: #7c4dff; }
     textarea { resize: vertical; min-height: 60px; font-family: monospace; font-size: 13px; }
 
     button {
-      margin-top: 14px;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.2s;
-      width: 100%;
+      margin-top: 14px; padding: 10px 20px; border: none;
+      border-radius: 6px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: opacity 0.2s; width: 100%;
     }
     button:hover { opacity: 0.85; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -106,114 +84,145 @@
     .btn-blue   { background: #1e88e5; color: #fff; }
     .btn-amber  { background: #f57c00; color: #fff; }
     .btn-teal   { background: #00897b; color: #fff; }
+    .btn-red    { background: #e53935; color: #fff; }
 
     .response-box {
-      margin-top: 14px;
-      background: #0f1117;
-      border: 1px solid #2a2d3a;
-      border-radius: 6px;
-      padding: 12px;
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 12px;
-      line-height: 1.5;
-      max-height: 240px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      color: #aaa;
+      margin-top: 14px; background: #0f1117;
+      border: 1px solid #2a2d3a; border-radius: 6px; padding: 12px;
+      font-family: "SF Mono", "Fira Code", monospace; font-size: 12px;
+      line-height: 1.5; max-height: 240px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all; color: #aaa;
     }
     .response-box.success { border-color: #2e7d32; color: #81c784; }
     .response-box.error   { border-color: #c62828; color: #ef9a9a; }
-    .response-box.pending { border-color: #7c4dff; color: #b39ddb; }
 
-    /* Full-width panels */
     .full-width { grid-column: 1 / -1; }
 
-    .status-bar {
-      display: flex; gap: 16px; flex-wrap: wrap;
-      margin-bottom: 8px;
-    }
-    .status-item {
-      font-size: 12px; color: #666;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .status-item strong { color: #b0b8d1; }
-
-    .hint {
-      font-size: 11px;
-      color: #555;
-      margin-top: 4px;
-    }
+    .hint { font-size: 11px; color: #555; margin-top: 4px; }
   </style>
 </head>
 <body>
 
   <header>
     <div class="logo">S</div>
-    <h1>Shopify Agent — Test Dashboard</h1>
+    <h1>Shopify Cart Agent — Test Dashboard</h1>
     <span class="tag">TEST</span>
   </header>
 
   <div class="container">
 
-    <!-- ── 1. Health Check ──────────────────────────────────── -->
+    <!-- 1. Health Check -->
     <div class="panel">
       <h2><span class="dot dot-green"></span> Health Check</h2>
-      <p style="font-size:13px;color:#777;margin-bottom:12px;">
-        Verify the FastAPI server is running.
-      </p>
+      <p style="font-size:13px;color:#777;margin-bottom:12px;">Verify the FastAPI server is running.</p>
       <button class="btn-teal" onclick="healthCheck()">GET /health</button>
-      <div id="health-res" class="response-box">Waiting…</div>
+      <div id="health-res" class="response-box">Waiting...</div>
     </div>
 
-    <!-- ── 2. Create Payment Session ────────────────────────── -->
+    <!-- 2. Create Cart -->
     <div class="panel">
-      <h2><span class="dot dot-blue"></span> Create Payment Session</h2>
+      <h2><span class="dot dot-blue"></span> Create Cart</h2>
 
-      <label for="cs-email">Email</label>
-      <input type="email" id="cs-email" placeholder="test@example.com" value="test@example.com" />
+      <label for="cc-variant">Merchandise ID (variant GID)</label>
+      <input type="text" id="cc-variant" placeholder="gid://shopify/ProductVariant/..." />
 
-      <label for="cs-source">Source Identifier (optional — leave blank for new)</label>
-      <input type="text" id="cs-source" placeholder="auto-generated if empty" />
+      <label for="cc-qty">Quantity</label>
+      <input type="number" id="cc-qty" value="1" min="1" />
 
-      <label for="cs-items">Line Items (JSON array)</label>
-      <textarea id="cs-items">[{"label":"AI Agent Monthly Plan","quantity":1,"price":"29.99","sku":"AGENT-001"}]</textarea>
-      <p class="hint">Leave as-is to use the default item, or edit to test custom products.</p>
+      <label for="cc-email">Buyer Email (optional)</label>
+      <input type="email" id="cc-email" placeholder="test@example.com" />
 
-      <button class="btn-purple" onclick="createSession()">POST /api/payment/session</button>
-      <div id="cs-res" class="response-box">Waiting…</div>
+      <label for="cc-attrs">Cart Attributes (JSON array, optional)</label>
+      <textarea id="cc-attrs">[{"key": "source", "value": "test-dashboard"}]</textarea>
+
+      <button class="btn-purple" onclick="createCart()">POST /api/cart</button>
+      <div id="cc-res" class="response-box">Waiting...</div>
     </div>
 
-    <!-- ── 3. Session Status ────────────────────────────────── -->
+    <!-- 3. Get Cart -->
     <div class="panel">
-      <h2><span class="dot dot-amber"></span> Session Status Lookup</h2>
+      <h2><span class="dot dot-amber"></span> Get Cart</h2>
 
-      <label for="ss-source">Source Identifier</label>
-      <input type="text" id="ss-source" placeholder="paste source_identifier here" />
-      <p class="hint">Paste the source_identifier returned from "Create Session" above.</p>
+      <label for="gc-id">Cart ID</label>
+      <input type="text" id="gc-id" placeholder="gid://shopify/Cart/..." />
+      <p class="hint">Auto-filled from Create Cart above.</p>
 
-      <button class="btn-amber" onclick="sessionStatus()">GET /api/session/status</button>
-      <div id="ss-res" class="response-box">Waiting…</div>
+      <button class="btn-amber" onclick="getCart()">GET /api/cart</button>
+      <div id="gc-res" class="response-box">Waiting...</div>
     </div>
 
-    <!-- ── 4. Submit Payment ────────────────────────────────── -->
+    <!-- 4. Add Lines -->
     <div class="panel">
-      <h2><span class="dot dot-red"></span> Submit Payment</h2>
+      <h2><span class="dot dot-teal"></span> Add Lines</h2>
 
-      <label for="sp-token">Session Token</label>
-      <input type="text" id="sp-token" placeholder="paste token here" />
+      <label for="al-cart">Cart ID</label>
+      <input type="text" id="al-cart" placeholder="gid://shopify/Cart/..." />
 
-      <label for="sp-idemp">Idempotency Key (optional)</label>
-      <input type="text" id="sp-idemp" placeholder="auto-generated if empty" />
+      <label for="al-lines">Lines (JSON array)</label>
+      <textarea id="al-lines">[{"merchandise_id": "gid://shopify/ProductVariant/...", "quantity": 1}]</textarea>
 
-      <label for="sp-items">Line Items (JSON array)</label>
-      <textarea id="sp-items">[{"label":"AI Agent Monthly Plan","quantity":1,"price":"29.99","sku":"AGENT-001"}]</textarea>
-
-      <button class="btn-blue" onclick="submitPayment()">POST /api/payment/submit</button>
-      <div id="sp-res" class="response-box">Waiting…</div>
+      <button class="btn-teal" onclick="addLines()">POST /api/cart/lines/add</button>
+      <div id="al-res" class="response-box">Waiting...</div>
     </div>
 
-    <!-- ── 5. Event Log ──────────────────────────────────────── -->
+    <!-- 5. Update Lines -->
+    <div class="panel">
+      <h2><span class="dot dot-purple"></span> Update Lines</h2>
+
+      <label for="ul-cart">Cart ID</label>
+      <input type="text" id="ul-cart" placeholder="gid://shopify/Cart/..." />
+
+      <label for="ul-lines">Lines (JSON array)</label>
+      <textarea id="ul-lines">[{"id": "gid://shopify/CartLine/...", "quantity": 2}]</textarea>
+      <p class="hint">Use a line ID from Get Cart response.</p>
+
+      <button class="btn-blue" onclick="updateLines()">POST /api/cart/lines/update</button>
+      <div id="ul-res" class="response-box">Waiting...</div>
+    </div>
+
+    <!-- 6. Remove Lines -->
+    <div class="panel">
+      <h2><span class="dot dot-red"></span> Remove Lines</h2>
+
+      <label for="rl-cart">Cart ID</label>
+      <input type="text" id="rl-cart" placeholder="gid://shopify/Cart/..." />
+
+      <label for="rl-ids">Line IDs (JSON array of strings)</label>
+      <textarea id="rl-ids">["gid://shopify/CartLine/..."]</textarea>
+
+      <button class="btn-red" onclick="removeLines()">POST /api/cart/lines/remove</button>
+      <div id="rl-res" class="response-box">Waiting...</div>
+    </div>
+
+    <!-- 7. Update Buyer Identity -->
+    <div class="panel">
+      <h2><span class="dot dot-blue"></span> Update Buyer Identity</h2>
+
+      <label for="bi-cart">Cart ID</label>
+      <input type="text" id="bi-cart" placeholder="gid://shopify/Cart/..." />
+
+      <label for="bi-data">Buyer Identity (JSON)</label>
+      <textarea id="bi-data">{"email": "test@example.com", "country_code": "US"}</textarea>
+
+      <button class="btn-blue" onclick="updateBuyerIdentity()">POST /api/cart/buyer-identity</button>
+      <div id="bi-res" class="response-box">Waiting...</div>
+    </div>
+
+    <!-- 8. Update Attributes -->
+    <div class="panel">
+      <h2><span class="dot dot-purple"></span> Update Attributes</h2>
+
+      <label for="ua-cart">Cart ID</label>
+      <input type="text" id="ua-cart" placeholder="gid://shopify/Cart/..." />
+
+      <label for="ua-attrs">Attributes (JSON array)</label>
+      <textarea id="ua-attrs">[{"key": "gift_message", "value": "Happy birthday!"}]</textarea>
+
+      <button class="btn-purple" onclick="updateAttributes()">POST /api/cart/attributes</button>
+      <div id="ua-res" class="response-box">Waiting...</div>
+    </div>
+
+    <!-- Event Log -->
     <div class="panel full-width">
       <h2><span class="dot dot-green"></span> Event Log</h2>
       <div id="event-log" class="response-box" style="max-height:180px;">Ready.</div>
@@ -223,7 +232,7 @@
   </div>
 
   <script>
-    const API_BASE = "";  // same origin
+    const API = "";
 
     function log(msg, type = "info") {
       const el = document.getElementById("event-log");
@@ -231,136 +240,190 @@
       el.textContent += `\n[${ts}] ${type.toUpperCase()}: ${msg}`;
       el.scrollTop = el.scrollHeight;
     }
-    function clearLog() {
-      document.getElementById("event-log").textContent = "Log cleared.";
-    }
+    function clearLog() { document.getElementById("event-log").textContent = "Log cleared."; }
 
-    function showResult(elId, data, ok) {
+    function show(elId, data, ok) {
       const el = document.getElementById(elId);
       el.textContent = JSON.stringify(data, null, 2);
       el.className = "response-box " + (ok ? "success" : "error");
     }
 
-    // ── 1. Health ───────────────────────────────────────────
+    function fillCartId(cartId) {
+      ["gc-id", "al-cart", "ul-cart", "rl-cart", "bi-cart", "ua-cart"].forEach(id => {
+        document.getElementById(id).value = cartId;
+      });
+    }
+
+    // 1. Health
     async function healthCheck() {
       log("GET /health");
       try {
-        const res = await fetch(`${API_BASE}/health`);
+        const res = await fetch(`${API}/health`);
         const data = await res.json();
-        showResult("health-res", data, res.ok);
+        show("health-res", data, res.ok);
         log(`Health: ${JSON.stringify(data)}`, res.ok ? "ok" : "err");
-      } catch (e) {
-        showResult("health-res", { error: e.message }, false);
-        log(`Health failed: ${e.message}`, "err");
-      }
+      } catch (e) { show("health-res", { error: e.message }, false); }
     }
 
-    // ── 2. Create Session ───────────────────────────────────
-    async function createSession() {
-      const email = document.getElementById("cs-email").value.trim();
-      const source = document.getElementById("cs-source").value.trim();
-      let items;
+    // 2. Create Cart
+    async function createCart() {
+      const variantId = document.getElementById("cc-variant").value.trim();
+      const qty = parseInt(document.getElementById("cc-qty").value, 10) || 1;
+      const email = document.getElementById("cc-email").value.trim();
+      let attrs;
+      try { attrs = JSON.parse(document.getElementById("cc-attrs").value); } catch { attrs = []; }
+
+      if (!variantId) { show("cc-res", { error: "variant ID required" }, false); return; }
+
+      const body = {
+        lines: [{ merchandise_id: variantId, quantity: qty }],
+        attributes: attrs,
+      };
+      if (email) body.buyer_identity = { email };
+
+      log(`POST /api/cart — variant=${variantId}, qty=${qty}`);
+
       try {
-        items = JSON.parse(document.getElementById("cs-items").value);
-      } catch {
-        showResult("cs-res", { error: "Invalid JSON in line items" }, false);
-        return;
-      }
-
-      const body = { email, line_items: items };
-      if (source) body.source_identifier = source;
-
-      log(`POST /api/payment/session — email=${email}, source=${source || "(new)"}`);
-
-      try {
-        const res = await fetch(`${API_BASE}/api/payment/session`, {
+        const res = await fetch(`${API}/api/cart`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         const data = await res.json();
-        showResult("cs-res", data, res.ok);
-
-        if (res.ok) {
-          // Auto-fill other panels with returned values
-          if (data.source_identifier) {
-            document.getElementById("ss-source").value = data.source_identifier;
-            document.getElementById("cs-source").value = data.source_identifier;
-          }
-          if (data.token) {
-            document.getElementById("sp-token").value = data.token;
-          }
-          log(`Session created — source=${data.source_identifier}, url=${data.checkout_url}`, "ok");
+        show("cc-res", data, res.ok);
+        if (res.ok && data.id) {
+          fillCartId(data.id);
+          log(`Cart created — id=${data.id}, checkout=${data.checkout_url}`, "ok");
         } else {
-          log(`Session create failed: ${data.detail || JSON.stringify(data)}`, "err");
+          log(`Create failed: ${data.detail || JSON.stringify(data)}`, "err");
         }
-      } catch (e) {
-        showResult("cs-res", { error: e.message }, false);
-        log(`Session create error: ${e.message}`, "err");
-      }
+      } catch (e) { show("cc-res", { error: e.message }, false); }
     }
 
-    // ── 3. Session Status ───────────────────────────────────
-    async function sessionStatus() {
-      const source = document.getElementById("ss-source").value.trim();
-      if (!source) {
-        showResult("ss-res", { error: "source_identifier is required" }, false);
-        return;
-      }
+    // 3. Get Cart
+    async function getCart() {
+      const cartId = document.getElementById("gc-id").value.trim();
+      if (!cartId) { show("gc-res", { error: "cart_id required" }, false); return; }
 
-      log(`GET /api/session/status?source_identifier=${source}`);
-
+      log(`GET /api/cart?cart_id=${cartId}`);
       try {
-        const res = await fetch(
-          `${API_BASE}/api/session/status?source_identifier=${encodeURIComponent(source)}`
-        );
+        const res = await fetch(`${API}/api/cart?cart_id=${encodeURIComponent(cartId)}`);
         const data = await res.json();
-        showResult("ss-res", data, res.ok);
-        log(`Status: ${JSON.stringify(data)}`, res.ok ? "ok" : "err");
-      } catch (e) {
-        showResult("ss-res", { error: e.message }, false);
-        log(`Status error: ${e.message}`, "err");
-      }
+        show("gc-res", data, res.ok);
+        log(`Get cart: ${res.ok ? "ok" : "err"}`, res.ok ? "ok" : "err");
+      } catch (e) { show("gc-res", { error: e.message }, false); }
     }
 
-    // ── 4. Submit Payment ───────────────────────────────────
-    async function submitPayment() {
-      const token = document.getElementById("sp-token").value.trim();
-      const idemp = document.getElementById("sp-idemp").value.trim();
-      let items;
-      try {
-        items = JSON.parse(document.getElementById("sp-items").value);
-      } catch {
-        showResult("sp-res", { error: "Invalid JSON in line items" }, false);
-        return;
+    // 4. Add Lines
+    async function addLines() {
+      const cartId = document.getElementById("al-cart").value.trim();
+      let lines;
+      try { lines = JSON.parse(document.getElementById("al-lines").value); } catch {
+        show("al-res", { error: "Invalid JSON" }, false); return;
       }
+      if (!cartId) { show("al-res", { error: "cart_id required" }, false); return; }
 
-      if (!token) {
-        showResult("sp-res", { error: "session_token is required" }, false);
-        return;
-      }
-
-      const body = { session_token: token, line_items: items };
-      if (idemp) body.idempotency_key = idemp;
-
-      log(`POST /api/payment/submit — token=${token.slice(0, 12)}…`);
-
+      log(`POST /api/cart/lines/add — ${lines.length} line(s)`);
       try {
-        const res = await fetch(`${API_BASE}/api/payment/submit`, {
+        const res = await fetch(`${API}/api/cart/lines/add`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ cart_id: cartId, lines }),
         });
         const data = await res.json();
-        showResult("sp-res", data, res.ok);
-        log(`Submit: ${JSON.stringify(data)}`, res.ok ? "ok" : "err");
-      } catch (e) {
-        showResult("sp-res", { error: e.message }, false);
-        log(`Submit error: ${e.message}`, "err");
-      }
+        show("al-res", data, res.ok);
+        log(`Add lines: ${res.ok ? "ok" : "err"}`, res.ok ? "ok" : "err");
+      } catch (e) { show("al-res", { error: e.message }, false); }
     }
 
-    // Run health check on load
+    // 5. Update Lines
+    async function updateLines() {
+      const cartId = document.getElementById("ul-cart").value.trim();
+      let lines;
+      try { lines = JSON.parse(document.getElementById("ul-lines").value); } catch {
+        show("ul-res", { error: "Invalid JSON" }, false); return;
+      }
+      if (!cartId) { show("ul-res", { error: "cart_id required" }, false); return; }
+
+      log(`POST /api/cart/lines/update — ${lines.length} line(s)`);
+      try {
+        const res = await fetch(`${API}/api/cart/lines/update`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cart_id: cartId, lines }),
+        });
+        const data = await res.json();
+        show("ul-res", data, res.ok);
+        log(`Update lines: ${res.ok ? "ok" : "err"}`, res.ok ? "ok" : "err");
+      } catch (e) { show("ul-res", { error: e.message }, false); }
+    }
+
+    // 6. Remove Lines
+    async function removeLines() {
+      const cartId = document.getElementById("rl-cart").value.trim();
+      let lineIds;
+      try { lineIds = JSON.parse(document.getElementById("rl-ids").value); } catch {
+        show("rl-res", { error: "Invalid JSON" }, false); return;
+      }
+      if (!cartId) { show("rl-res", { error: "cart_id required" }, false); return; }
+
+      log(`POST /api/cart/lines/remove — ${lineIds.length} line(s)`);
+      try {
+        const res = await fetch(`${API}/api/cart/lines/remove`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cart_id: cartId, line_ids: lineIds }),
+        });
+        const data = await res.json();
+        show("rl-res", data, res.ok);
+        log(`Remove lines: ${res.ok ? "ok" : "err"}`, res.ok ? "ok" : "err");
+      } catch (e) { show("rl-res", { error: e.message }, false); }
+    }
+
+    // 7. Update Buyer Identity
+    async function updateBuyerIdentity() {
+      const cartId = document.getElementById("bi-cart").value.trim();
+      let identity;
+      try { identity = JSON.parse(document.getElementById("bi-data").value); } catch {
+        show("bi-res", { error: "Invalid JSON" }, false); return;
+      }
+      if (!cartId) { show("bi-res", { error: "cart_id required" }, false); return; }
+
+      log(`POST /api/cart/buyer-identity`);
+      try {
+        const res = await fetch(`${API}/api/cart/buyer-identity`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cart_id: cartId, buyer_identity: identity }),
+        });
+        const data = await res.json();
+        show("bi-res", data, res.ok);
+        log(`Buyer identity: ${res.ok ? "ok" : "err"}`, res.ok ? "ok" : "err");
+      } catch (e) { show("bi-res", { error: e.message }, false); }
+    }
+
+    // 8. Update Attributes
+    async function updateAttributes() {
+      const cartId = document.getElementById("ua-cart").value.trim();
+      let attrs;
+      try { attrs = JSON.parse(document.getElementById("ua-attrs").value); } catch {
+        show("ua-res", { error: "Invalid JSON" }, false); return;
+      }
+      if (!cartId) { show("ua-res", { error: "cart_id required" }, false); return; }
+
+      log(`POST /api/cart/attributes`);
+      try {
+        const res = await fetch(`${API}/api/cart/attributes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cart_id: cartId, attributes: attrs }),
+        });
+        const data = await res.json();
+        show("ua-res", data, res.ok);
+        log(`Attributes: ${res.ok ? "ok" : "err"}`, res.ok ? "ok" : "err");
+      } catch (e) { show("ua-res", { error: e.message }, false); }
+    }
+
     healthCheck();
   </script>
 

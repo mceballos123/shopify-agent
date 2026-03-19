@@ -1,39 +1,49 @@
 """
-Shopify chat protocol — message models and handlers.
+Shopify Cart protocol — message models and handlers.
 
 Defines a Protocol that lets other agents interact with the Shopify
-payment system through simple request/response messages.
+Storefront Cart API through simple request/response messages.
 
 Supported actions:
-  - "create_session"  → create or resume a Shop Pay payment session
-  - "session_status"  → look up the status of an existing session
-  - "submit_payment"  → submit/confirm a payment for a session
+  - "create_cart"           → create a new cart with line items
+  - "add_lines"             → add merchandise lines to an existing cart
+  - "update_lines"          → update quantities/variants on existing lines
+  - "remove_lines"          → remove lines from a cart
+  - "update_buyer_identity" → set buyer email/phone/country on a cart
+  - "update_attributes"     → set custom key-value attributes on a cart
+  - "get_cart"              → fetch current cart state
 """
 
 import sys
 import os
 
-# Ensure the backend package root is importable when running the agent
-# script directly (e.g. `python agent/shopify_agent.py`).
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from uagents import Context, Model, Protocol
 
-from payments.session import get_or_create_payment_session, submit_payment
-from payments.store import get_session
-from payments.client import ShopPayAPIError
+from payments.cart import (
+    create_cart,
+    add_lines,
+    update_lines,
+    remove_lines,
+    update_buyer_identity,
+    update_attributes,
+    get_cart,
+)
+from payments.client import StorefrontAPIError
 
 
 # ── Message models ───────────────────────────────────────────────────────────
 
 class ShopifyRequest(Model):
     """Inbound request from another agent."""
-    action: str          # "create_session" | "session_status" | "submit_payment"
-    email: str = ""
-    source_identifier: str = ""
-    session_token: str = ""
-    idempotency_key: str = ""
-    line_items: list = []  # list of dicts: {label, quantity, price, sku?}
+    action: str
+    cart_id: str = ""
+    lines: list = []
+    line_ids: list = []
+    buyer_identity: dict = {}
+    attributes: list = []
+    note: str = ""
 
 
 class ShopifyResponse(Model):
@@ -47,122 +57,166 @@ class ShopifyResponse(Model):
 # ── Protocol definition ─────────────────────────────────────────────────────
 
 shopify_protocol = Protocol(
-    name="ShopifyPaymentProtocol",
-    version="0.1.0",
+    name="ShopifyCartProtocol",
+    version="0.2.0",
 )
 
-DEFAULT_LINE_ITEMS = [
-    {"label": "AI Agent Monthly Plan", "quantity": 1, "price": "29.99", "sku": "AGENT-001"},
+SUPPORTED_ACTIONS = [
+    "create_cart", "add_lines", "update_lines", "remove_lines",
+    "update_buyer_identity", "update_attributes", "get_cart",
 ]
 
 
 @shopify_protocol.on_message(ShopifyRequest, replies=ShopifyResponse)
 async def handle_shopify_request(ctx: Context, sender: str, msg: ShopifyRequest):
-    """Route inbound requests to the appropriate payment handler."""
+    """Route inbound requests to the appropriate cart handler."""
     ctx.logger.info(f"Received '{msg.action}' request from {sender}")
 
-    if msg.action == "create_session":
-        await _handle_create_session(ctx, sender, msg)
-    elif msg.action == "session_status":
-        await _handle_session_status(ctx, sender, msg)
-    elif msg.action == "submit_payment":
-        await _handle_submit_payment(ctx, sender, msg)
+    handler = _HANDLERS.get(msg.action)
+    if handler:
+        await handler(ctx, sender, msg)
     else:
         await ctx.send(sender, ShopifyResponse(
             success=False,
             action=msg.action,
-            error=f"Unknown action: {msg.action!r}. "
-                  "Supported: create_session, session_status, submit_payment",
+            error=f"Unknown action: {msg.action!r}. Supported: {', '.join(SUPPORTED_ACTIONS)}",
         ))
 
 
 # ── Action handlers ──────────────────────────────────────────────────────────
 
-async def _handle_create_session(ctx: Context, sender: str, msg: ShopifyRequest):
-    """Create or resume a Shop Pay payment session."""
-    line_items = msg.line_items or DEFAULT_LINE_ITEMS
-
+async def _handle_create_cart(ctx: Context, sender: str, msg: ShopifyRequest):
     try:
-        session = get_or_create_payment_session(
-            line_items,
-            source_identifier=msg.source_identifier or None,
+        cart = create_cart(
+            lines=msg.lines,
+            buyer_identity=msg.buyer_identity or None,
+            attributes=msg.attributes or None,
+            note=msg.note or None,
         )
         await ctx.send(sender, ShopifyResponse(
-            success=True,
-            action="create_session",
-            data={
-                "checkout_url": session["checkout_url"],
-                "source_identifier": session["source_identifier"],
-                "token": session["token"],
-            },
+            success=True, action="create_cart", data=cart,
         ))
-    except ShopPayAPIError as exc:
-        ctx.logger.error(f"create_session failed: {exc}")
+    except StorefrontAPIError as exc:
+        ctx.logger.error(f"create_cart failed: {exc}")
         await ctx.send(sender, ShopifyResponse(
-            success=False,
-            action="create_session",
-            error=str(exc),
+            success=False, action="create_cart", error=str(exc),
         ))
 
 
-async def _handle_session_status(ctx: Context, sender: str, msg: ShopifyRequest):
-    """Look up the current status of a payment session."""
-    if not msg.source_identifier:
+async def _handle_add_lines(ctx: Context, sender: str, msg: ShopifyRequest):
+    if not msg.cart_id:
         await ctx.send(sender, ShopifyResponse(
-            success=False,
-            action="session_status",
-            error="source_identifier is required",
+            success=False, action="add_lines", error="cart_id is required",
         ))
         return
-
-    record = get_session(msg.source_identifier)
-    if record is None:
-        await ctx.send(sender, ShopifyResponse(
-            success=False,
-            action="session_status",
-            error=f"No session found for {msg.source_identifier!r}",
-        ))
-        return
-
-    await ctx.send(sender, ShopifyResponse(
-        success=True,
-        action="session_status",
-        data={
-            "source_identifier": record.source_identifier,
-            "status": record.status.value,
-            "checkout_url": record.checkout_url,
-            "token": record.token,
-        },
-    ))
-
-
-async def _handle_submit_payment(ctx: Context, sender: str, msg: ShopifyRequest):
-    """Submit/confirm a Shop Pay payment."""
-    if not msg.session_token:
-        await ctx.send(sender, ShopifyResponse(
-            success=False,
-            action="submit_payment",
-            error="session_token is required",
-        ))
-        return
-
-    line_items = msg.line_items or DEFAULT_LINE_ITEMS
-
     try:
-        receipt = submit_payment(
-            session_token=msg.session_token,
-            line_items=line_items,
-            idempotency_key=msg.idempotency_key or None,
-        )
+        cart = add_lines(msg.cart_id, msg.lines)
         await ctx.send(sender, ShopifyResponse(
-            success=True,
-            action="submit_payment",
-            data=receipt,
+            success=True, action="add_lines", data=cart,
         ))
-    except ShopPayAPIError as exc:
-        ctx.logger.error(f"submit_payment failed: {exc}")
+    except StorefrontAPIError as exc:
+        ctx.logger.error(f"add_lines failed: {exc}")
         await ctx.send(sender, ShopifyResponse(
-            success=False,
-            action="submit_payment",
-            error=str(exc),
+            success=False, action="add_lines", error=str(exc),
         ))
+
+
+async def _handle_update_lines(ctx: Context, sender: str, msg: ShopifyRequest):
+    if not msg.cart_id:
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="update_lines", error="cart_id is required",
+        ))
+        return
+    try:
+        cart = update_lines(msg.cart_id, msg.lines)
+        await ctx.send(sender, ShopifyResponse(
+            success=True, action="update_lines", data=cart,
+        ))
+    except StorefrontAPIError as exc:
+        ctx.logger.error(f"update_lines failed: {exc}")
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="update_lines", error=str(exc),
+        ))
+
+
+async def _handle_remove_lines(ctx: Context, sender: str, msg: ShopifyRequest):
+    if not msg.cart_id:
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="remove_lines", error="cart_id is required",
+        ))
+        return
+    try:
+        cart = remove_lines(msg.cart_id, msg.line_ids)
+        await ctx.send(sender, ShopifyResponse(
+            success=True, action="remove_lines", data=cart,
+        ))
+    except StorefrontAPIError as exc:
+        ctx.logger.error(f"remove_lines failed: {exc}")
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="remove_lines", error=str(exc),
+        ))
+
+
+async def _handle_update_buyer_identity(ctx: Context, sender: str, msg: ShopifyRequest):
+    if not msg.cart_id:
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="update_buyer_identity", error="cart_id is required",
+        ))
+        return
+    try:
+        cart = update_buyer_identity(msg.cart_id, msg.buyer_identity)
+        await ctx.send(sender, ShopifyResponse(
+            success=True, action="update_buyer_identity", data=cart,
+        ))
+    except StorefrontAPIError as exc:
+        ctx.logger.error(f"update_buyer_identity failed: {exc}")
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="update_buyer_identity", error=str(exc),
+        ))
+
+
+async def _handle_update_attributes(ctx: Context, sender: str, msg: ShopifyRequest):
+    if not msg.cart_id:
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="update_attributes", error="cart_id is required",
+        ))
+        return
+    try:
+        cart = update_attributes(msg.cart_id, msg.attributes)
+        await ctx.send(sender, ShopifyResponse(
+            success=True, action="update_attributes", data=cart,
+        ))
+    except StorefrontAPIError as exc:
+        ctx.logger.error(f"update_attributes failed: {exc}")
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="update_attributes", error=str(exc),
+        ))
+
+
+async def _handle_get_cart(ctx: Context, sender: str, msg: ShopifyRequest):
+    if not msg.cart_id:
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="get_cart", error="cart_id is required",
+        ))
+        return
+    try:
+        cart = get_cart(msg.cart_id)
+        await ctx.send(sender, ShopifyResponse(
+            success=True, action="get_cart", data=cart,
+        ))
+    except StorefrontAPIError as exc:
+        ctx.logger.error(f"get_cart failed: {exc}")
+        await ctx.send(sender, ShopifyResponse(
+            success=False, action="get_cart", error=str(exc),
+        ))
+
+
+_HANDLERS = {
+    "create_cart": _handle_create_cart,
+    "add_lines": _handle_add_lines,
+    "update_lines": _handle_update_lines,
+    "remove_lines": _handle_remove_lines,
+    "update_buyer_identity": _handle_update_buyer_identity,
+    "update_attributes": _handle_update_attributes,
+    "get_cart": _handle_get_cart,
+}

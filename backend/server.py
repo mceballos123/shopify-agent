@@ -1,152 +1,237 @@
+import os
 
 from fastapi import FastAPI, Header, Query, Request
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from payments.auth import get_frontend_config
-from payments.callback import handle_payment_callback
-from payments.client import ShopPayAPIError
-from payments.session import get_or_create_payment_session, submit_payment
-from payments.store import get_session
-from webhooks.handler import handle_payment_event, verify_webhook
+from payments.client import StorefrontAPIError
+from payments.cart import (
+    create_cart,
+    add_lines,
+    update_lines,
+    remove_lines,
+    update_buyer_identity,
+    update_attributes,
+    get_cart,
+)
+from payments.store import get_cart as get_cart_record
+from webhooks.handler import (
+    handle_order_creation,
+    handle_order_cancellation,
+    handle_order_payment,
+    verify_webhook,
+)
 
-app = FastAPI(title="Shop Pay Integration")
+app = FastAPI(title="Shopify Storefront Cart API")
 
-templates = Jinja2Templates(directory="templates")
-
-
-# ── Request / Response models ───────────────────────────────────────────────
-
-class SessionRequest(BaseModel):
-    email: str
-    line_items: list[dict] | None = None
-    # Sent by the client on page refresh to resume an existing session
-    source_identifier: str | None = None
-
-
-class SubmitRequest(BaseModel):
-    session_token: str
-    line_items: list[dict] | None = None
-    idempotency_key: str | None = None
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+templates = Jinja2Templates(directory=os.path.join(_BASE_DIR, "templates"))
 
 
-# ── Routes ───────────────────────────────────────────────────────────────────
+# ── Request models ───────────────────────────────────────────────────────────
 
-# Serve the checkout UI with Shop Pay SDK config injected.
-# Watches the email field and triggers the Shop Pay auth modal automatically.
-@app.get("/checkout")
-def checkout_page(request: Request):
-    config = get_frontend_config()
-    return templates.TemplateResponse(
-        "checkout.html",
-        {"request": request, **config},
-    )
+class CartLineInput(BaseModel):
+    merchandise_id: str
+    quantity: int = 1
+    attributes: list[dict] | None = None
 
 
-# Create or resume a Shop Pay session. Client stores source_identifier in
-# localStorage and sends it back on refresh to avoid duplicate charges.
-@app.post("/api/payment/session")
-def create_session(body: SessionRequest):
-    default_items = [
-        {"label": "AI Agent Monthly Plan", "quantity": 1, "price": "29.99", "sku": "AGENT-001"},
-    ]
-    line_items = body.line_items or default_items
+class CartCreateRequest(BaseModel):
+    lines: list[CartLineInput]
+    buyer_identity: dict | None = None
+    attributes: list[dict] | None = None
+    note: str | None = None
 
+
+class CartLinesAddRequest(BaseModel):
+    cart_id: str
+    lines: list[CartLineInput]
+
+
+class CartLineUpdateInput(BaseModel):
+    id: str
+    quantity: int | None = None
+    merchandise_id: str | None = None
+    attributes: list[dict] | None = None
+
+
+class CartLinesUpdateRequest(BaseModel):
+    cart_id: str
+    lines: list[CartLineUpdateInput]
+
+
+class CartLinesRemoveRequest(BaseModel):
+    cart_id: str
+    line_ids: list[str]
+
+
+class CartBuyerIdentityRequest(BaseModel):
+    cart_id: str
+    buyer_identity: dict
+
+
+class CartAttributesRequest(BaseModel):
+    cart_id: str
+    attributes: list[dict]
+
+
+# ── Cart Routes ──────────────────────────────────────────────────────────────
+
+@app.post("/api/cart")
+def create_cart_endpoint(body: CartCreateRequest):
     try:
-        session = get_or_create_payment_session(
-            line_items,
-            source_identifier=body.source_identifier,
+        cart = create_cart(
+            lines=[ln.model_dump() for ln in body.lines],
+            buyer_identity=body.buyer_identity,
+            attributes=body.attributes,
+            note=body.note,
         )
-        return JSONResponse({
-            "checkout_url": session["checkout_url"],
-            "source_identifier": session["source_identifier"],
-            "token": session["token"],
-        })
-    except ShopPayAPIError as exc:
+        return JSONResponse(cart)
+    except StorefrontAPIError as exc:
         return JSONResponse({"detail": str(exc)}, status_code=502)
 
 
-# Receive signed Shopify webhook events for payment_sessions/resolve|reject.
-# Verifies HMAC-SHA256 signature before updating session state.
-@app.post("/webhooks/payment")
-async def payment_webhook(
+@app.get("/api/cart")
+def get_cart_endpoint(cart_id: str = Query(...)):
+    try:
+        cart = get_cart(cart_id)
+        return JSONResponse(cart)
+    except StorefrontAPIError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=502)
+
+
+@app.post("/api/cart/lines/add")
+def add_lines_endpoint(body: CartLinesAddRequest):
+    try:
+        cart = add_lines(
+            body.cart_id,
+            [ln.model_dump() for ln in body.lines],
+        )
+        return JSONResponse(cart)
+    except StorefrontAPIError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=502)
+
+
+@app.post("/api/cart/lines/update")
+def update_lines_endpoint(body: CartLinesUpdateRequest):
+    try:
+        cart = update_lines(
+            body.cart_id,
+            [ln.model_dump(exclude_none=True) for ln in body.lines],
+        )
+        return JSONResponse(cart)
+    except StorefrontAPIError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=502)
+
+
+@app.post("/api/cart/lines/remove")
+def remove_lines_endpoint(body: CartLinesRemoveRequest):
+    try:
+        cart = remove_lines(body.cart_id, body.line_ids)
+        return JSONResponse(cart)
+    except StorefrontAPIError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=502)
+
+
+@app.post("/api/cart/buyer-identity")
+def update_buyer_identity_endpoint(body: CartBuyerIdentityRequest):
+    try:
+        cart = update_buyer_identity(body.cart_id, body.buyer_identity)
+        return JSONResponse(cart)
+    except StorefrontAPIError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=502)
+
+
+@app.post("/api/cart/attributes")
+def update_attributes_endpoint(body: CartAttributesRequest):
+    try:
+        cart = update_attributes(body.cart_id, body.attributes)
+        return JSONResponse(cart)
+    except StorefrontAPIError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=502)
+
+
+# ── Cart status from local store ─────────────────────────────────────────────
+
+@app.get("/api/cart/status")
+def cart_status(cart_id: str = Query(...)):
+    record = get_cart_record(cart_id)
+    if record is None:
+        return JSONResponse(
+            {"detail": f"No cart record found for {cart_id!r}"},
+            status_code=404,
+        )
+    return JSONResponse({
+        "cart_id": record.cart_id,
+        "status": record.status.value,
+        "checkout_url": record.checkout_url,
+        "order_id": record.order_id,
+    })
+
+
+# ── Order Webhooks ───────────────────────────────────────────────────────────
+
+async def _parse_and_verify(request: Request, hmac_header: str) -> dict | None:
+    """Shared helper: verify signature and parse JSON body."""
+    body = await request.body()
+    if not verify_webhook(body, hmac_header):
+        return None
+    return await request.json()
+
+
+@app.post("/webhooks/order/payment")
+async def order_payment_webhook(
     request: Request,
     x_shopify_hmac_sha256: str = Header(default=""),
-    x_shopify_topic: str = Header(default=""),
 ):
-    body = await request.body()
-
-    if not verify_webhook(body, x_shopify_hmac_sha256):
+    payload = await _parse_and_verify(request, x_shopify_hmac_sha256)
+    if payload is None:
         return JSONResponse({"detail": "Invalid webhook signature"}, status_code=401)
-
-    try:
-        payload = await request.json()
-    except Exception:
-        return JSONResponse({"detail": "Invalid JSON payload"}, status_code=400)
-
-    handle_payment_event(x_shopify_topic, payload)
+    handle_order_payment(payload)
     return JSONResponse({"received": True})
 
 
-# Post-payment redirect target. Verifies receipt via source_identifier and
-# redirects the user to the appropriate dashboard page based on payment status.
-@app.get("/payment/callback")
-def payment_callback(
-    source_identifier: str = Query(default="", alias="source_identifier"),
+@app.post("/order/creation")
+async def order_creation_webhook(
+    request: Request,
+    x_shopify_hmac_sha256: str = Header(default=""),
 ):
-    redirect_url, status_code = handle_payment_callback(source_identifier)
-    return RedirectResponse(url=redirect_url, status_code=status_code)
+    payload = await _parse_and_verify(request, x_shopify_hmac_sha256)
+    if payload is None:
+        return JSONResponse({"detail": "Invalid webhook signature"}, status_code=401)
+    handle_order_creation(payload)
+    return JSONResponse({"received": True})
 
 
-# Serve the test dashboard UI for exercising all agent endpoints.
+@app.post("/order/cancellation")
+async def order_cancellation_webhook(
+    request: Request,
+    x_shopify_hmac_sha256: str = Header(default=""),
+):
+    payload = await _parse_and_verify(request, x_shopify_hmac_sha256)
+    if payload is None:
+        return JSONResponse({"detail": "Invalid webhook signature"}, status_code=401)
+    handle_order_cancellation(payload)
+    return JSONResponse({"received": True})
+
+
+# ── UI ───────────────────────────────────────────────────────────────────────
+
+@app.get("/checkout")
+def checkout_page(request: Request):
+    store_domain = os.getenv("SHOPIFY_STORE_DOMAIN", "")
+    return templates.TemplateResponse(
+        "checkout.html",
+        {"request": request, "store_domain": store_domain},
+    )
+
+
 @app.get("/test")
 def test_dashboard(request: Request):
     return templates.TemplateResponse("test_dashboard.html", {"request": request})
 
 
-# Look up the current status of a payment session by source_identifier.
-@app.get("/api/session/status")
-def session_status(source_identifier: str = Query(...)):
-    record = get_session(source_identifier)
-    if record is None:
-        return JSONResponse(
-            {"detail": f"No session found for {source_identifier!r}"},
-            status_code=404,
-        )
-    return JSONResponse({
-        "source_identifier": record.source_identifier,
-        "status": record.status.value,
-        "checkout_url": record.checkout_url,
-        "token": record.token,
-    })
-
-
-# Submit/confirm a Shop Pay payment.
-@app.post("/api/payment/submit")
-def submit_payment_endpoint(body: SubmitRequest):
-    default_items = [
-        {"label": "AI Agent Monthly Plan", "quantity": 1, "price": "29.99", "sku": "AGENT-001"},
-    ]
-    line_items = body.line_items or default_items
-
-    try:
-        receipt = submit_payment(
-            session_token=body.session_token,
-            line_items=line_items,
-            idempotency_key=body.idempotency_key,
-        )
-        return JSONResponse(receipt)
-    except ShopPayAPIError as exc:
-        return JSONResponse({"detail": str(exc)}, status_code=502)
-
-
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-if __name__ == "__main__":
-    import uvicorn
-    # Development only — use `uvicorn server:app` directly in production
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,12 +1,12 @@
-RECEIPT_LOOKUP_QUERY = """
-query shopPayPaymentRequestReceipts($sourceIdentifier: String!) {
-  shopPayPaymentRequestReceipts(sourceIdentifier: $sourceIdentifier) {
-    token
-    processingStatusType
-    paymentRequest {
-      total { amount currencyCode }
-      subtotal { amount currencyCode }
-    }
+from .mutations import CART_FRAGMENT
+
+CART_QUERY = (
+    CART_FRAGMENT
+    + """
+query getCart($id: ID!) {
+  cart(id: $id) {
+    ...CartFields
   }
 }
 """
+)

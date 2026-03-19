@@ -16,7 +16,6 @@
       flex-direction: column;
     }
 
-    /* ── Header ─────────────────────────────────────────────── */
     header {
       background: #ffffff;
       border-bottom: 1px solid #e8eaed;
@@ -26,226 +25,118 @@
       gap: 12px;
     }
     header .logo {
-      width: 36px;
-      height: 36px;
-      background: #5c6bc0;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: 700;
-      font-size: 18px;
+      width: 36px; height: 36px;
+      background: #5c6bc0; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 700; font-size: 18px;
     }
-    header .company-name {
-      font-size: 20px;
-      font-weight: 600;
-      color: #1a1a2e;
-    }
-    header .breadcrumb {
-      margin-left: auto;
-      font-size: 13px;
-      color: #9e9e9e;
-    }
+    header .company-name { font-size: 20px; font-weight: 600; color: #1a1a2e; }
+    header .breadcrumb { margin-left: auto; font-size: 13px; color: #9e9e9e; }
     header .breadcrumb span { color: #5c6bc0; }
 
-    /* ── Layout ──────────────────────────────────────────────── */
     main {
-      flex: 1;
-      display: grid;
+      flex: 1; display: grid;
       grid-template-columns: 1fr 420px;
-      gap: 32px;
-      max-width: 1060px;
-      width: 100%;
-      margin: 40px auto;
-      padding: 0 24px;
+      gap: 32px; max-width: 1060px; width: 100%;
+      margin: 40px auto; padding: 0 24px;
     }
-    @media (max-width: 768px) {
-      main { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 768px) { main { grid-template-columns: 1fr; } }
 
-    /* ── Cards ───────────────────────────────────────────────── */
     .card {
-      background: #ffffff;
-      border-radius: 12px;
-      border: 1px solid #e8eaed;
-      padding: 28px;
+      background: #ffffff; border-radius: 12px;
+      border: 1px solid #e8eaed; padding: 28px;
     }
-    .card h2 {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      color: #1a1a2e;
-    }
+    .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; color: #1a1a2e; }
 
-    /* ── Form fields ─────────────────────────────────────────── */
     .field-group { margin-bottom: 18px; }
-    label {
-      display: block;
-      font-size: 13px;
-      font-weight: 500;
-      color: #555;
-      margin-bottom: 6px;
+    label { display: block; font-size: 13px; font-weight: 500; color: #555; margin-bottom: 6px; }
+    input[type="email"], input[type="text"], input[type="number"] {
+      width: 100%; padding: 10px 14px;
+      border: 1px solid #d0d5dd; border-radius: 8px;
+      font-size: 15px; outline: none;
+      transition: border-color 0.2s; background: #fafafa;
     }
-    input[type="email"],
-    input[type="text"] {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1px solid #d0d5dd;
-      border-radius: 8px;
-      font-size: 15px;
-      outline: none;
-      transition: border-color 0.2s;
-      background: #fafafa;
-    }
-    input[type="email"]:focus,
-    input[type="text"]:focus {
-      border-color: #5c6bc0;
-      background: #fff;
-    }
+    input:focus { border-color: #5c6bc0; background: #fff; }
 
-    /* Shop Pay login container sits right below the email field */
-    #shop-pay-login-container {
-      margin-top: 8px;
-      min-height: 0;
+    #checkout-btn {
+      width: 100%; padding: 13px;
+      background: #5c6bc0; color: #fff; border: none;
+      border-radius: 8px; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s, opacity 0.2s;
     }
+    #checkout-btn:hover { background: #4a57ab; }
+    #checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 22px 0;
-      color: #aaa;
-      font-size: 13px;
-    }
-    .divider::before,
-    .divider::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: #e8eaed;
-    }
-
-    /* ── Primary CTA ─────────────────────────────────────────── */
-    #pay-btn {
-      width: 100%;
-      padding: 13px;
-      background: #5c6bc0;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, opacity 0.2s;
-    }
-    #pay-btn:hover { background: #4a57ab; }
-    #pay-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* ── Status message ──────────────────────────────────────── */
     #status {
-      display: none;
-      margin-top: 14px;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 13px;
+      display: none; margin-top: 14px; padding: 10px 14px;
+      border-radius: 8px; font-size: 13px;
     }
-    #status.info  { background: #e8eaf6; color: #3949ab; }
-    #status.error { background: #fdecea; color: #c62828; }
+    #status.info  { background: #e8eaf6; color: #3949ab; display: block; }
+    #status.error { background: #fdecea; color: #c62828; display: block; }
 
-    /* ── Order summary ───────────────────────────────────────── */
     .order-summary .item {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #f0f0f0;
-      font-size: 14px;
+      display: flex; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px;
     }
     .order-summary .item:last-child { border-bottom: none; }
     .order-summary .item .name { color: #444; }
     .order-summary .item .price { font-weight: 500; }
     .order-summary .total-row {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 2px solid #e8eaed;
-      font-weight: 700;
-      font-size: 16px;
+      display: flex; justify-content: space-between;
+      margin-top: 16px; padding-top: 16px;
+      border-top: 2px solid #e8eaed; font-weight: 700; font-size: 16px;
     }
-
     .badge {
-      display: inline-block;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 20px;
-      background: #e8f5e9;
-      color: #2e7d32;
-      margin-left: 8px;
+      display: inline-block; font-size: 11px; font-weight: 600;
+      padding: 3px 8px; border-radius: 20px;
+      background: #e8f5e9; color: #2e7d32; margin-left: 8px;
     }
 
-    /* ── Trust icons ─────────────────────────────────────────── */
     .trust {
-      display: flex;
-      gap: 16px;
-      margin-top: 20px;
-      justify-content: center;
-      flex-wrap: wrap;
+      display: flex; gap: 16px; margin-top: 20px;
+      justify-content: center; flex-wrap: wrap;
     }
     .trust-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: #888;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: #888;
     }
     .trust-item svg { width: 14px; height: 14px; fill: #888; }
   </style>
 </head>
 <body>
 
-  <!-- ── Header ── -->
   <header>
     <div class="logo">Y</div>
     <div class="company-name">Your Company</div>
-    <div class="breadcrumb">Cart &rsaquo; <span>Checkout</span> &rsaquo; Confirmation</div>
+    <div class="breadcrumb">Shop &rsaquo; <span>Checkout</span> &rsaquo; Confirmation</div>
   </header>
 
-  <!-- ── Main grid ── -->
   <main>
-
-    <!-- Left: payment form -->
     <section>
       <div class="card">
-        <h2>Contact &amp; Payment</h2>
+        <h2>Contact &amp; Checkout</h2>
 
         <div class="field-group">
           <label for="email-input">Email address</label>
-          <input
-            type="email"
-            id="email-input"
-            name="email"
-            placeholder="you@example.com"
-            autocomplete="email"
-            required
-          />
-          <!--
-            Shop Pay watches this element via createLogin({emailInputId:'email-input'}).
-            When a recognised Shop Pay email is typed, the authentication modal
-            appears inside this container automatically.
-          -->
-          <div id="shop-pay-login-container"></div>
+          <input type="email" id="email-input" placeholder="you@example.com" autocomplete="email" required />
         </div>
 
-        <div class="divider">or continue as guest</div>
+        <div class="field-group">
+          <label for="variant-input">Product Variant ID</label>
+          <input type="text" id="variant-input" placeholder="gid://shopify/ProductVariant/..." />
+          <small style="color:#999;">Enter a Shopify ProductVariant GID</small>
+        </div>
 
-        <button id="pay-btn" type="button">Continue to Shop Pay</button>
+        <div class="field-group">
+          <label for="qty-input">Quantity</label>
+          <input type="number" id="qty-input" value="1" min="1" />
+        </div>
+
+        <button id="checkout-btn" type="button">Create Cart &amp; Checkout</button>
         <div id="status"></div>
 
         <div class="trust">
           <div class="trust-item">
-            <!-- lock icon -->
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M18 8h-1V6A5 5 0 0 0 7 6v2H6a2 2 0 0 0-2 2v10a2
                 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0
@@ -255,7 +146,6 @@
             SSL Secured
           </div>
           <div class="trust-item">
-            <!-- shield icon -->
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 1L3 5v6c0 5.25 3.75 10.15 9 11.35C17.25
                 21.15 21 16.25 21 11V5l-9-4zm-1 13l-3-3
@@ -264,124 +154,85 @@
             Buyer Protection
           </div>
           <div class="trust-item">
-            <!-- credit card icon -->
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2
                 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0
                 14H4v-6h16v6zm0-10H4V6h16v2z"/>
             </svg>
-            Powered by Shop Pay
+            Powered by Shopify
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Right: order summary -->
     <aside>
       <div class="card order-summary">
-        <h2>Order Summary <span class="badge">1 item</span></h2>
-
-        <div class="item">
-          <span class="name">AI Agent Monthly Plan<br>
-            <small style="color:#aaa;">SKU: AGENT-001</small>
-          </span>
-          <span class="price">$29.99</span>
+        <h2>Order Summary <span class="badge" id="item-count">1 item</span></h2>
+        <div id="summary-items">
+          <div class="item">
+            <span class="name">Product Variant</span>
+            <span class="price" id="summary-qty">x1</span>
+          </div>
         </div>
-
         <div class="total-row">
           <span>Total</span>
-          <span>$29.99 USD</span>
+          <span id="summary-total">Calculated at checkout</span>
         </div>
       </div>
     </aside>
-
   </main>
 
-  <!--
-    Shop Pay Commerce Components SDK.
-    Provides window.ShopPay.PaymentRequest.createLogin() for email recognition
-    and window.ShopPay.PaymentRequest.createButton() for the pay button.
-    Docs: https://shopify.dev/docs/api/commerce-components/pay
-  -->
-  <script src="https://cdn.shopify.com/shopifycloud/shop-js/v0.1/client.js"
-          async
-          onload="initShopPayAuth()"></script>
-
   <script>
-    // Values injected by FastAPI at render time
-    const SHOP_PAY_CLIENT_ID = "{{ shop_pay_client_id }}";
-    const SESSION_API        = "/api/payment/session";
-
-    // Fixed line items that match the order summary above
-    const LINE_ITEMS = [
-      { label: "AI Agent Monthly Plan", quantity: 1, price: "29.99", sku: "AGENT-001" }
-    ];
+    const CART_API = "/api/cart";
 
     function showStatus(msg, type = "info") {
       const el = document.getElementById("status");
       el.textContent = msg;
       el.className = type;
-      el.style.display = "block";
     }
 
-    function hideStatus() {
-      const el = document.getElementById("status");
-      el.style.display = "none";
-    }
+    document.getElementById("qty-input").addEventListener("input", () => {
+      const qty = document.getElementById("qty-input").value || 1;
+      document.getElementById("summary-qty").textContent = `x${qty}`;
+    });
 
-    /**
-     * Initialise the Shop Pay email-recognition login component.
-     *
-     * createLogin() watches #email-input for changes. When the typed email
-     * matches a Shop Pay account, it renders an authentication button/modal
-     * inside #shop-pay-login-container, allowing the customer to authenticate
-     * via email, SMS, or passkey — accelerating checkout by pre-filling their
-     * shipping and payment details.
-     */
-    function initShopPayAuth() {
-      if (!window.ShopPay || !window.ShopPay.PaymentRequest) {
-        console.warn("Shop Pay SDK not available.");
-        return;
-      }
-
-      window.ShopPay.PaymentRequest
-        .createLogin({ emailInputId: "email-input" })
-        .render("#shop-pay-login-container");
-    }
-
-    /**
-     * "Continue to Shop Pay" button handler.
-     *
-     * Calls the backend to create a payment session, then redirects to
-     * the Shop Pay hosted checkout URL.
-     */
-    document.getElementById("pay-btn").addEventListener("click", async () => {
+    document.getElementById("checkout-btn").addEventListener("click", async () => {
       const email = document.getElementById("email-input").value.trim();
+      const variantId = document.getElementById("variant-input").value.trim();
+      const quantity = parseInt(document.getElementById("qty-input").value, 10) || 1;
 
-      if (!email) {
-        showStatus("Please enter your email address.", "error");
-        return;
-      }
+      if (!email) { showStatus("Please enter your email address.", "error"); return; }
+      if (!variantId) { showStatus("Please enter a product variant ID.", "error"); return; }
 
-      const btn = document.getElementById("pay-btn");
+      const btn = document.getElementById("checkout-btn");
       btn.disabled = true;
-      showStatus("Creating your payment session…");
+      showStatus("Creating your cart...");
 
       try {
-        const response = await fetch(SESSION_API, {
+        const res = await fetch(CART_API, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, line_items: LINE_ITEMS }),
+          body: JSON.stringify({
+            lines: [{ merchandise_id: variantId, quantity }],
+            buyer_identity: { email },
+          }),
         });
 
-        if (!response.ok) {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.detail || "Session creation failed.");
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "Cart creation failed.");
         }
 
-        const { checkout_url } = await response.json();
-        showStatus("Redirecting to Shop Pay…");
-        window.location.href = checkout_url;
+        const cart = await res.json();
+
+        // Update summary with actual cost
+        if (cart.cost && cart.cost.total) {
+          document.getElementById("summary-total").textContent =
+            `${cart.cost.total.amount} ${cart.cost.total.currencyCode}`;
+        }
+
+        showStatus("Redirecting to checkout...");
+        window.location.href = cart.checkout_url;
 
       } catch (err) {
         showStatus(err.message, "error");
