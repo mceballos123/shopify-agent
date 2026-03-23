@@ -7,6 +7,7 @@ from .cart import (
     update_buyer_identity,
     update_attributes,
     get_cart,
+    get_products,
 )
 from .store import CartRecord, OrderStatus, save_cart, get_cart as get_cart_record, update_status, find_cart_by_source
 
@@ -20,6 +21,7 @@ __all__ = [
     "update_buyer_identity",
     "update_attributes",
     "get_cart",
+    "get_products",
     "CartRecord",
     "OrderStatus",
     "save_cart",

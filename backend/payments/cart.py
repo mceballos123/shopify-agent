@@ -15,7 +15,7 @@ from graphql.mutations import (
     CART_BUYER_IDENTITY_UPDATE_MUTATION,
     CART_ATTRIBUTES_UPDATE_MUTATION,
 )
-from graphql.queries import CART_QUERY
+from graphql.queries import CART_QUERY, PRODUCTS_QUERY
 
 
 def _parse_cart(raw: dict) -> dict:
@@ -256,3 +256,46 @@ def get_cart(cart_id: str) -> dict:
     if not raw:
         raise StorefrontAPIError(f"Cart not found: {cart_id}")
     return _parse_cart(raw)
+
+
+def get_products(first: int = 20, after: str | None = None) -> dict:
+    """Fetch a paginated list of products with their variants."""
+    variables: dict = {"first": first}
+    if after:
+        variables["after"] = after
+
+    result = execute_graphql(PRODUCTS_QUERY, variables)
+    connection = result.get("products", {})
+
+    products = []
+    for edge in connection.get("edges", []):
+        node = edge["node"]
+        images = [
+            {"url": img["node"]["url"], "alt_text": img["node"].get("altText")}
+            for img in node.get("images", {}).get("edges", [])
+        ]
+        variants = [
+            {
+                "id": v["node"]["id"],
+                "title": v["node"]["title"],
+                "price": v["node"]["price"],
+                "available_for_sale": v["node"]["availableForSale"],
+            }
+            for v in node.get("variants", {}).get("edges", [])
+        ]
+        products.append({
+            "id": node["id"],
+            "title": node["title"],
+            "description": node.get("description", ""),
+            "handle": node.get("handle", ""),
+            "images": images,
+            "price_range": node.get("priceRange", {}),
+            "variants": variants,
+        })
+
+    page_info = connection.get("pageInfo", {})
+    return {
+        "products": products,
+        "has_next_page": page_info.get("hasNextPage", False),
+        "end_cursor": page_info.get("endCursor"),
+    }

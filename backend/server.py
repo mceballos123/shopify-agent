@@ -21,6 +21,7 @@ from payments.cart import (
     update_buyer_identity,
     update_attributes,
     get_cart,
+    get_products,
 )
 from payments.store import get_cart as get_cart_record
 from webhooks.handler import (
@@ -108,6 +109,19 @@ def update_attributes_endpoint(body: CartAttributesRequest):
     try:
         cart = update_attributes(body.cart_id, body.attributes)
         return JSONResponse(cart)
+    except StorefrontAPIError as exc:
+        return JSONResponse({"detail": str(exc)}, status_code=502)
+
+
+# ── Products ─────────────────────────────────────────────────────────────────
+
+@app.get("/api/products")
+def list_products(
+    first: int = Query(default=20, ge=1, le=50),
+    after: str | None = Query(default=None),
+):
+    try:
+        return JSONResponse(get_products(first=first, after=after))
     except StorefrontAPIError as exc:
         return JSONResponse({"detail": str(exc)}, status_code=502)
 
