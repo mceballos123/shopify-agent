@@ -3,8 +3,15 @@ import os
 from fastapi import FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
 
+from models import (
+    CartCreateRequest,
+    CartLinesAddRequest,
+    CartLinesUpdateRequest,
+    CartLinesRemoveRequest,
+    CartBuyerIdentityRequest,
+    CartAttributesRequest,
+)
 from payments.client import StorefrontAPIError
 from payments.cart import (
     create_cart,
@@ -27,53 +34,6 @@ app = FastAPI(title="Shopify Storefront Cart API")
 
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(_BASE_DIR, "templates"))
-
-
-# ── Request models ───────────────────────────────────────────────────────────
-
-class CartLineInput(BaseModel):
-    merchandise_id: str
-    quantity: int = 1
-    attributes: list[dict] | None = None
-
-
-class CartCreateRequest(BaseModel):
-    lines: list[CartLineInput]
-    buyer_identity: dict | None = None
-    attributes: list[dict] | None = None
-    note: str | None = None
-
-
-class CartLinesAddRequest(BaseModel):
-    cart_id: str
-    lines: list[CartLineInput]
-
-
-class CartLineUpdateInput(BaseModel):
-    id: str
-    quantity: int | None = None
-    merchandise_id: str | None = None
-    attributes: list[dict] | None = None
-
-
-class CartLinesUpdateRequest(BaseModel):
-    cart_id: str
-    lines: list[CartLineUpdateInput]
-
-
-class CartLinesRemoveRequest(BaseModel):
-    cart_id: str
-    line_ids: list[str]
-
-
-class CartBuyerIdentityRequest(BaseModel):
-    cart_id: str
-    buyer_identity: dict
-
-
-class CartAttributesRequest(BaseModel):
-    cart_id: str
-    attributes: list[dict]
 
 
 # ── Cart Routes ──────────────────────────────────────────────────────────────
@@ -185,11 +145,14 @@ async def order_payment_webhook(
     request: Request,
     x_shopify_hmac_sha256: str = Header(default=""),
 ):
-    payload = await _parse_and_verify(request, x_shopify_hmac_sha256)
-    if payload is None:
-        return JSONResponse({"detail": "Invalid webhook signature"}, status_code=401)
-    handle_order_payment(payload)
-    return JSONResponse({"received": True})
+    try:
+        payload = await _parse_and_verify(request, x_shopify_hmac_sha256)
+        if payload is None:
+            return JSONResponse({"detail": "Invalid webhook signature"}, status_code=401)
+        handle_order_payment(payload)
+        return JSONResponse({"received": True})
+    except Exception as exc:
+        return JSONResponse({"detail": f"Payment webhook error: {exc}"}, status_code=500)
 
 
 @app.post("/order/creation")
@@ -197,11 +160,14 @@ async def order_creation_webhook(
     request: Request,
     x_shopify_hmac_sha256: str = Header(default=""),
 ):
-    payload = await _parse_and_verify(request, x_shopify_hmac_sha256)
-    if payload is None:
-        return JSONResponse({"detail": "Invalid webhook signature"}, status_code=401)
-    handle_order_creation(payload)
-    return JSONResponse({"received": True})
+    try:
+        payload = await _parse_and_verify(request, x_shopify_hmac_sha256)
+        if payload is None:
+            return JSONResponse({"detail": "Invalid webhook signature"}, status_code=401)
+        handle_order_creation(payload)
+        return JSONResponse({"received": True})
+    except Exception as exc:
+        return JSONResponse({"detail": f"Creation webhook error: {exc}"}, status_code=500)
 
 
 @app.post("/order/cancellation")
@@ -209,11 +175,14 @@ async def order_cancellation_webhook(
     request: Request,
     x_shopify_hmac_sha256: str = Header(default=""),
 ):
-    payload = await _parse_and_verify(request, x_shopify_hmac_sha256)
-    if payload is None:
-        return JSONResponse({"detail": "Invalid webhook signature"}, status_code=401)
-    handle_order_cancellation(payload)
-    return JSONResponse({"received": True})
+    try:
+        payload = await _parse_and_verify(request, x_shopify_hmac_sha256)
+        if payload is None:
+            return JSONResponse({"detail": "Invalid webhook signature"}, status_code=401)
+        handle_order_cancellation(payload)
+        return JSONResponse({"received": True})
+    except Exception as exc:
+        return JSONResponse({"detail": f"Cancellation webhook error: {exc}"}, status_code=500)
 
 
 # ── UI ───────────────────────────────────────────────────────────────────────

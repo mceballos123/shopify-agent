@@ -11,17 +11,16 @@ Starts the FastAPI server (HTTP routes, webhooks, UI) and the uAgent
 
 import os
 import sys
+import uvicorn
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from dotenv import load_dotenv
-
-load_dotenv()
-
-import uvicorn
 from uagents import Agent, Context
 from agent.chat_protocol import shopify_protocol
 from server import app  # FastAPI app with all HTTP routes
+
+load_dotenv()
 
 AGENT_SEED = os.getenv("SHOPIFY_AGENT_SEED", "shopify-agent-default-seed")
 AGENT_PORT = int(os.getenv("SHOPIFY_AGENT_PORT", "8001"))

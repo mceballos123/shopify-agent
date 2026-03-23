@@ -19,8 +19,9 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from uagents import Context, Model, Protocol
+from uagents import Context, Protocol
 
+from models import ShopifyRequest, ShopifyResponse
 from payments.cart import (
     create_cart,
     add_lines,
@@ -31,27 +32,6 @@ from payments.cart import (
     get_cart,
 )
 from payments.client import StorefrontAPIError
-
-
-# ── Message models ───────────────────────────────────────────────────────────
-
-class ShopifyRequest(Model):
-    """Inbound request from another agent."""
-    action: str
-    cart_id: str = ""
-    lines: list = []
-    line_ids: list = []
-    buyer_identity: dict = {}
-    attributes: list = []
-    note: str = ""
-
-
-class ShopifyResponse(Model):
-    """Outbound response back to the requesting agent."""
-    success: bool
-    action: str
-    data: dict = {}
-    error: str = ""
 
 
 # ── Protocol definition ─────────────────────────────────────────────────────
