@@ -18,13 +18,15 @@ Replaced Shop Pay payment sessions with the Shopify Storefront GraphQL Cart API.
 4. Client redirects to `checkoutUrl` from the cart response to complete purchase on Shopify checkout
 5. Shopify webhooks (order creation, payment, cancellation) update local cart status
 
-### Backend structure (current as of 2026-03-19)
+### Backend structure (current as of 2026-03-23)
 ```
 shopify-agent/
 ├── backend/
 │   ├── .env                        # Shopify credentials (gitignored)
 │   ├── .env.example                # Credential template
 │   ├── server.py                   # FastAPI app — HTTP routes
+│   ├── models.py                   # All request & agent message models
+│   │                               # (Pydantic BaseModel + uagents Model)
 │   │
 │   ├── graphql/
 │   │   ├── __init__.py
@@ -51,7 +53,7 @@ shopify-agent/
 │   └── agent/
 │       ├── __init__.py             # Re-exports protocol + message models
 │       ├── shopify_agent.py        # Agent entry point — creates Agent, includes protocol, runs
-│       └── chat_protocol.py        # Protocol + message models + on_message handlers
+│       └── chat_protocol.py        # Protocol definition + on_message handlers
 │
 ├── claude/
 │   └── CLAUDE.md                   # Session notes / architecture (this file)

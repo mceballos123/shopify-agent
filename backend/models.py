@@ -66,3 +66,4 @@ class ShopifyResponse(Model):
     action: str
     data: dict = {}
     error: str = ""
+    redirect_url: str = ""

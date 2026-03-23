@@ -4,14 +4,6 @@ Shopify Cart protocol — message models and handlers.
 Defines a Protocol that lets other agents interact with the Shopify
 Storefront Cart API through simple request/response messages.
 
-Supported actions:
-  - "create_cart"           → create a new cart with line items
-  - "add_lines"             → add merchandise lines to an existing cart
-  - "update_lines"          → update quantities/variants on existing lines
-  - "remove_lines"          → remove lines from a cart
-  - "update_buyer_identity" → set buyer email/phone/country on a cart
-  - "update_attributes"     → set custom key-value attributes on a cart
-  - "get_cart"              → fetch current cart state
 """
 
 import sys
@@ -32,19 +24,29 @@ from payments.cart import (
     get_cart,
 )
 from payments.client import StorefrontAPIError
+from composio_auth import (
+    get_connection,
+    handle_connect_shopify,
+    handle_complete_auth,
+    handle_check_connection,
+)
 
 
 # ── Protocol definition ─────────────────────────────────────────────────────
 
 shopify_protocol = Protocol(
     name="ShopifyCartProtocol",
-    version="0.2.0",
+    version="0.3.0",
 )
 
 SUPPORTED_ACTIONS = [
+    "connect_shopify", "check_connection", "complete_auth",
     "create_cart", "add_lines", "update_lines", "remove_lines",
     "update_buyer_identity", "update_attributes", "get_cart",
 ]
+
+# Actions that don't require an active Shopify connection
+AUTH_ACTIONS = {"connect_shopify", "check_connection", "complete_auth"}
 
 
 @shopify_protocol.on_message(ShopifyRequest, replies=ShopifyResponse)
@@ -53,14 +55,33 @@ async def handle_shopify_request(ctx: Context, sender: str, msg: ShopifyRequest)
     ctx.logger.info(f"Received '{msg.action}' request from {sender}")
 
     handler = _HANDLERS.get(msg.action)
-    if handler:
-        await handler(ctx, sender, msg)
-    else:
+    if not handler:
         await ctx.send(sender, ShopifyResponse(
             success=False,
             action=msg.action,
             error=f"Unknown action: {msg.action!r}. Supported: {', '.join(SUPPORTED_ACTIONS)}",
         ))
+        return
+
+    # Auth actions don't need a connection check
+    if msg.action in AUTH_ACTIONS:
+        await handler(ctx, sender, msg)
+        return
+
+    # All cart actions require an authenticated Shopify connection
+    conn = get_connection(sender)
+    if not conn or not conn.is_authenticated():
+        await ctx.send(sender, ShopifyResponse(
+            success=False,
+            action=msg.action,
+            error=(
+                "Shopify account not connected. "
+                "Send action='connect_shopify' first to link your account."
+            ),
+        ))
+        return
+
+    await handler(ctx, sender, msg)
 
 
 # ── Action handlers ──────────────────────────────────────────────────────────
@@ -192,6 +213,9 @@ async def _handle_get_cart(ctx: Context, sender: str, msg: ShopifyRequest):
 
 
 _HANDLERS = {
+    "connect_shopify": handle_connect_shopify,
+    "complete_auth": handle_complete_auth,
+    "check_connection": handle_check_connection,
     "create_cart": _handle_create_cart,
     "add_lines": _handle_add_lines,
     "update_lines": _handle_update_lines,

@@ -4,3 +4,4 @@ fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 jinja2>=3.1.0
 uagents>=0.17.0
+composio>=0.6.0
