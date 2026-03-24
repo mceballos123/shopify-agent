@@ -1,29 +1,43 @@
 """
-Gemini LLM handler with Composio Shopify tools and stateful sessions.
+Gemini LLM handler with Storefront + Composio Shopify tools and stateful sessions.
 
 Manages per-user conversation history and processes natural-language
-messages through Gemini, which dynamically calls Composio Shopify tools
-instead of hardcoded action handlers.
+messages through Gemini, which can call:
+  - Storefront tools (browse products, manage cart) via graphql/tools.py
+  - Composio Shopify tools (OAuth-gated admin actions) dynamically
 """
 
 import os
 import json
-from typing import Optional
-
 import google.generativeai as genai
 from dotenv import load_dotenv
+
+from graphql.declarations import TOOL_DECLARATIONS as STOREFRONT_TOOLS
+from graphql.tools import TOOL_EXECUTORS
 
 load_dotenv()
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-SYSTEM_INSTRUCTION = (
-    "You are a Shopify shopping assistant. You help users manage their "
-    "Shopify store carts: creating carts, adding/updating/removing items, "
-    "setting buyer identity, and checking out. Use the available Shopify "
-    "tools to fulfill user requests. Be concise and helpful. "
-    "If a tool call fails, explain the error clearly to the user."
-)
+SHOPIFY_PROMPT = """
+You are a Shopify shopping assistant agent powered by Fetch.ai.
+
+The user has logged into their Shopify account via OAuth. They are now
+browsing your store's inventory and can manage their cart.
+
+What you can do:
+- Show the store's products when the user wants to browse (use get_products)
+- Create a cart and add items for the user (use create_cart)
+- Add, update, or remove items from their cart (use add_lines, update_lines, remove_lines)
+- Set buyer identity on the cart (use update_buyer_identity)
+- Fetch current cart state (use get_cart)
+
+When the user is done shopping, provide them with the checkout URL from the
+cart response — Shopify handles the payment from there.
+
+Be concise and helpful. If a tool call fails, explain the error clearly.
+Always confirm what you did after each action.
+"""
 
 
 # ── Per-user session store (stateful across refreshes) ─────────────────────
@@ -41,30 +55,40 @@ def clear_history(user_id: str) -> None:
     _sessions.pop(user_id, None)
 
 
-# ── Composio -> Gemini tool conversion ─────────────────────────────────────
+# ── Tool merging: Storefront + Composio ───────────────────────────────────
 
-def _convert_tools(composio_tools: list) -> Optional[list]:
-    """Convert Composio (OpenAI-format) tools to Gemini function declarations."""
-    if not composio_tools:
-        return None
-    declarations = []
-    for tool in composio_tools:
-        func = tool.get("function", tool)
-        decl = {
-            "name": func["name"],
-            "description": func.get("description", ""),
-        }
-        params = func.get("parameters")
-        if params:
-            decl["parameters"] = params
-        declarations.append(decl)
+def _build_gemini_tools(composio_tools: list | None) -> list:
+    """Merge storefront tool declarations with Composio tool declarations."""
+    declarations = list(STOREFRONT_TOOLS)
+
+    if composio_tools:
+        for tool in composio_tools:
+            func = tool.get("function", tool)
+            decl = {
+                "name": func["name"],
+                "description": func.get("description", ""),
+            }
+            params = func.get("parameters")
+            if params:
+                decl["parameters"] = params
+            declarations.append(decl)
+
     return [{"function_declarations": declarations}]
 
 
-# ── Composio tool execution ────────────────────────────────────────────────
+# ── Tool execution routing ────────────────────────────────────────────────
 
 def _execute_tool(composio_client, user_id: str, name: str, args: dict) -> dict:
-    """Execute a single Composio tool call and return the result."""
+    """Execute a tool call — route to storefront or Composio."""
+    # Storefront tools (our own GraphQL operations)
+    if name in TOOL_EXECUTORS:
+        try:
+            result = TOOL_EXECUTORS[name](**args)
+            return {"success": True, "data": result}
+        except Exception as exc:
+            return {"success": False, "error": str(exc)}
+
+    # Composio tools (dynamic Shopify admin actions)
     try:
         result = composio_client.actions.execute(
             action=name,
@@ -90,7 +114,7 @@ def _has_function_call(response) -> bool:
 
 
 async def process_message(user_id: str, text: str, connection) -> str:
-    """Send a user message through Gemini with Composio Shopify tools.
+    """Send a user message through Gemini with Storefront + Composio tools.
 
     Args:
         user_id: The sender's identifier (used for session + Composio entity).
@@ -101,12 +125,12 @@ async def process_message(user_id: str, text: str, connection) -> str:
         The assistant's text response.
     """
     composio_tools = connection.get_tools()
-    gemini_tools = _convert_tools(composio_tools)
+    gemini_tools = _build_gemini_tools(composio_tools)
 
     model = genai.GenerativeModel(
         model_name="gemini-2.0-flash",
         tools=gemini_tools,
-        system_instruction=SYSTEM_INSTRUCTION,
+        system_instruction=SHOPIFY_PROMPT,
     )
 
     history = get_history(user_id)

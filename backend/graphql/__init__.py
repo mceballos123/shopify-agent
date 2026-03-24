@@ -1,3 +1,6 @@
+from .client import execute_graphql, StorefrontAPIError
+from .declarations import TOOL_DECLARATIONS
+from .tools import TOOL_EXECUTORS
 from .mutations import (
     CART_CREATE_MUTATION,
     CART_LINES_ADD_MUTATION,
@@ -6,9 +9,13 @@ from .mutations import (
     CART_BUYER_IDENTITY_UPDATE_MUTATION,
     CART_ATTRIBUTES_UPDATE_MUTATION,
 )
-from .queries import CART_QUERY
+from .queries import CART_QUERY, PRODUCTS_QUERY
 
 __all__ = [
+    "execute_graphql",
+    "StorefrontAPIError",
+    "TOOL_DECLARATIONS",
+    "TOOL_EXECUTORS",
     "CART_CREATE_MUTATION",
     "CART_LINES_ADD_MUTATION",
     "CART_LINES_UPDATE_MUTATION",
@@ -16,4 +23,5 @@ __all__ = [
     "CART_BUYER_IDENTITY_UPDATE_MUTATION",
     "CART_ATTRIBUTES_UPDATE_MUTATION",
     "CART_QUERY",
+    "PRODUCTS_QUERY",
 ]

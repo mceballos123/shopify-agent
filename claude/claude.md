@@ -1,59 +1,48 @@
 # Shopify Agent - Session Notes
 
-## Storefront Cart API Integration (2026-03-19)
+## Architecture Overview (2026-03-23)
 
-Replaced Shop Pay payment sessions with the Shopify Storefront GraphQL Cart API. Users add items to a cart and are redirected to Shopify's hosted checkout via the cart's `checkoutUrl`.
+A conversational Shopify cart agent. Users log into their Shopify account via Composio OAuth, then browse the agent's store inventory via the Storefront GraphQL API. They can add, update, or remove items from their cart through natural language. When done, the agent provides a Shopify checkout link — **Shopify handles all payments, not this application**.
 
-### What was built
-- **Cart CRUD** — `cartCreate`, `cartLinesAdd`, `cartLinesUpdate`, `cartLinesRemove` mutations
-- **Buyer Identity** — `cartBuyerIdentityUpdate` to associate email/phone/country with a cart
-- **Cart Attributes** — `cartAttributesUpdate` for custom key-value metadata on carts
-- **Cart Query** — `cart(id)` query to fetch full cart state including lines, cost, and buyer identity
-- **Cart objects implemented** — Cart, CartLine, CartCost, Merchandise (ProductVariant), CartBuyerIdentity, Attribute
+### Flow
+1. User connects via HTTP or ASI1 chat protocol
+2. Agent checks Composio OAuth status — if not connected, initiates OAuth and returns auth link
+3. Once authenticated, user messages go to Gemini LLM with two sets of tools:
+   - **Storefront tools** — browse products, create/manage cart (via `graphql/tools.py`)
+   - **Composio tools** — dynamic Shopify admin actions (via Composio SDK)
+4. Gemini calls the appropriate tools to fulfill the user's request
+5. When the user is done, agent returns the cart's `checkoutUrl` — Shopify handles payment
 
-### How it works
-1. Client calls `POST /api/cart` with merchandise variant IDs + quantities → creates a Storefront cart
-2. Cart can be modified via `/api/cart/lines/add`, `/api/cart/lines/update`, `/api/cart/lines/remove`
-3. Buyer identity set via `/api/cart/buyer-identity`, attributes via `/api/cart/attributes`
-4. Client redirects to `checkoutUrl` from the cart response to complete purchase on Shopify checkout
-5. Shopify webhooks (order creation, payment, cancellation) update local cart status
-
-### Backend structure (current as of 2026-03-23)
+### Backend structure
 ```
 shopify-agent/
 ├── backend/
-│   ├── .env                        # Shopify credentials (gitignored)
+│   ├── .env                        # Shopify + Composio + Gemini credentials (gitignored)
 │   ├── .env.example                # Credential template
-│   ├── server.py                   # FastAPI app — HTTP routes
-│   ├── models.py                   # All request & agent message models
-│   │                               # (Pydantic BaseModel + uagents Model)
+│   ├── server.py                   # FastAPI app — OAuth, chat, and UI routes
 │   │
 │   ├── graphql/
-│   │   ├── __init__.py
+│   │   ├── __init__.py             # Re-exports client, tools, queries, mutations
+│   │   ├── client.py              # execute_graphql() — Storefront API HTTP client
+│   │   ├── tools.py               # Storefront ops as Gemini-callable tools + declarations
 │   │   ├── mutations.py            # CART_CREATE, CART_LINES_ADD/UPDATE/REMOVE,
 │   │   │                           # CART_BUYER_IDENTITY_UPDATE, CART_ATTRIBUTES_UPDATE
-│   │   └── queries.py              # CART_QUERY
-│   │
-│   ├── payments/
-│   │   ├── __init__.py             # Re-exports all public symbols
-│   │   ├── client.py               # execute_graphql(), StorefrontAPIError
-│   │   ├── cart.py                 # create_cart(), add_lines(), update_lines(),
-│   │   │                           # remove_lines(), update_buyer_identity(),
-│   │   │                           # update_attributes(), get_cart()
-│   │   └── store.py                # In-memory cart store — CartRecord, OrderStatus
+│   │   └── queries.py              # CART_QUERY, PRODUCTS_QUERY
 │   │
 │   ├── templates/
-│   │   ├── checkout.html           # Checkout UI (creates cart, redirects to checkoutUrl)
-│   │   └── test_dashboard.html     # Test UI for all cart endpoints
+│   │   ├── checkout.html           # Checkout UI
+│   │   └── test_dashboard.html     # Test UI
 │   │
-│   ├── webhooks/
-│   │   ├── __init__.py
-│   │   └── handler.py              # verify_webhook(), handle_order_creation/payment/cancellation
+│   ├── agent/
+│   │   ├── __init__.py             # Re-exports chat_protocol
+│   │   ├── shopify_agent.py        # Agent entry point — creates Agent, includes protocol, runs uvicorn
+│   │   ├── chat_protocol.py        # ASI1 Chat protocol — OAuth gate + Gemini routing
+│   │   ├── llm_handler.py          # Gemini LLM with Storefront + Composio tools, stateful sessions
+│   │   └── session_manager.py      # HTTP session manager — cookie-based OAuth + session persistence
 │   │
-│   └── agent/
-│       ├── __init__.py             # Re-exports protocol + message models
-│       ├── shopify_agent.py        # Agent entry point — creates Agent, includes protocol, runs
-│       └── chat_protocol.py        # Protocol definition + on_message handlers
+│   └── composio_auth/
+│       ├── __init__.py             # Re-exports ShopifyConnection, get/create helpers
+│       └── shopify_connection.py   # Per-user Shopify OAuth via Composio
 │
 ├── claude/
 │   └── CLAUDE.md                   # Session notes / architecture (this file)
@@ -65,41 +54,36 @@ shopify-agent/
 ### API Endpoints
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/cart` | Create a new cart |
-| GET | `/api/cart?cart_id=` | Fetch cart from Storefront API |
-| POST | `/api/cart/lines/add` | Add lines to a cart |
-| POST | `/api/cart/lines/update` | Update line quantities/variants |
-| POST | `/api/cart/lines/remove` | Remove lines from a cart |
-| POST | `/api/cart/buyer-identity` | Update buyer email/phone/country |
-| POST | `/api/cart/attributes` | Set custom cart attributes |
-| GET | `/api/cart/status` | Local store status lookup |
+| GET | `/api/auth/status` | Check if current session has active Shopify OAuth |
+| POST | `/api/auth/initiate` | Start Shopify OAuth flow, returns redirect URL |
+| POST | `/api/chat` | Send message to Gemini assistant (requires OAuth) |
 | GET | `/checkout` | Checkout UI page |
 | GET | `/test` | Test dashboard UI |
 | GET | `/health` | Health check |
 
-### Webhook Endpoints (already registered)
-| Method | Path | Shopify Topic |
-|--------|------|---------------|
-| POST | `/webhooks/order/payment` | ORDER_TRANSACTIONS_CREATE |
-| POST | `/order/creation` | ORDERS_CREATE |
-| POST | `/order/cancellation` | ORDERS_CANCELLED |
+### Gemini Tools Available to the Agent
+| Tool | Source | Description |
+|------|--------|-------------|
+| `get_products` | Storefront | Browse the store's product catalog |
+| `get_cart` | Storefront | Fetch current cart state |
+| `create_cart` | Storefront | Create a new cart with line items |
+| `add_lines` | Storefront | Add items to an existing cart |
+| `update_lines` | Storefront | Update quantities/variants in a cart |
+| `remove_lines` | Storefront | Remove items from a cart |
+| `update_buyer_identity` | Storefront | Set buyer email/phone/country on a cart |
+| *(dynamic)* | Composio | Any Shopify admin actions available via Composio SDK |
 
-### uAgent Protocol (v0.2.0)
-Actions: `create_cart`, `add_lines`, `update_lines`, `remove_lines`, `update_buyer_identity`, `update_attributes`, `get_cart`
-
-```python
-await ctx.send(SHOPIFY_AGENT_ADDRESS, ShopifyRequest(
-    action="create_cart",
-    lines=[{"merchandise_id": "gid://shopify/ProductVariant/123", "quantity": 1}],
-    buyer_identity={"email": "user@example.com"},
-))
-```
+### uAgent Protocol (ASI1 Chat)
+Uses the standard ASI1 `ChatMessage` protocol. Messages are routed through the same OAuth gate and Gemini + tools pipeline as HTTP requests.
 
 ### Config needed (.env)
 - `SHOPIFY_STORE_DOMAIN` — e.g. your-store.myshopify.com
 - `SHOPIFY_STOREFRONT_ACCESS_TOKEN` — Storefront API access token
 - `SHOPIFY_API_VERSION` — e.g. 2024-10
-- `SHOPIFY_WEBHOOK_SECRET` — signing secret from Partner Dashboard
+- `COMPOSIO_API_KEY` — Composio API key
+- `SHOPIFY_AUTH_CONFIG_ID` — Composio auth config for Shopify OAuth
+- `GEMINI_API_KEY` — Google Gemini API key
 - `SHOPIFY_AGENT_SEED` — seed phrase for deterministic agent address
 - `SHOPIFY_AGENT_PORT` — port the agent listens on (default 8001)
 - `SHOPIFY_AGENT_ENDPOINT` — public endpoint for agent communication
+- `HTTP_PORT` — FastAPI server port (default 8000)
