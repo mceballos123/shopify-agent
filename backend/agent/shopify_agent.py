@@ -6,7 +6,7 @@ Run:
     python -m agent.shopify_agent
 
 Starts the FastAPI server (HTTP routes, webhooks, UI) and the uAgent
-(ShopifyCartProtocol) in a single process.
+(ASI1 Chat protocol with Gemini + Composio) in a single process.
 """
 
 import os
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from dotenv import load_dotenv
 from uagents import Agent, Context
-from agent.chat_protocol import shopify_protocol
+from agent.chat_protocol import chat_protocol
 from server import app  # FastAPI app with all HTTP routes
 
 load_dotenv()
@@ -36,9 +36,10 @@ shopify_agent = Agent(
     seed=AGENT_SEED,
     port=AGENT_PORT,
     endpoint=[AGENT_ENDPOINT],
+    mailbox=True,
 )
 
-shopify_agent.include(shopify_protocol, publish_manifest=True)
+shopify_agent.include(chat_protocol, publish_manifest=True)
 
 
 @shopify_agent.on_event("startup")

@@ -1,226 +1,121 @@
 """
-Shopify Cart protocol — message models and handlers.
+ASI1 Chat protocol for the Shopify Cart Agent.
 
-Defines a Protocol that lets other agents interact with the Shopify
-Storefront Cart API through simple request/response messages.
+Handles natural-language messages from ASI1 users via the standard chat
+protocol. Routes through Gemini + Composio Shopify tools after ensuring
+the user has authenticated via OAuth.
 
+Flow:
+  1. User sends a ChatMessage from ASI1
+  2. Agent checks Composio OAuth status for the sender
+  3. If not connected → initiates OAuth, returns auth link
+  4. If connected → passes message to Gemini (llm_handler) which
+     dynamically calls Composio Shopify tools as needed
+  5. Returns Gemini's response as a ChatMessage
 """
 
 import sys
 import os
+from datetime import datetime, timezone
+from uuid import uuid4
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from uagents import Context, Protocol
-
-from models import ShopifyRequest, ShopifyResponse
-from payments.cart import (
-    create_cart,
-    add_lines,
-    update_lines,
-    remove_lines,
-    update_buyer_identity,
-    update_attributes,
-    get_cart,
-)
-from payments.client import StorefrontAPIError
-from composio_auth import (
-    get_connection,
-    handle_connect_shopify,
-    handle_complete_auth,
-    handle_check_connection,
+from uagents_core.contrib.protocols.chat import (
+    ChatAcknowledgement,
+    ChatMessage,
+    TextContent,
+    chat_protocol_spec,
 )
 
+from composio_auth.shopify_connection import get_or_create_connection, get_connection
+from agent.llm_handler import process_message
 
-# ── Protocol definition ─────────────────────────────────────────────────────
-
-shopify_protocol = Protocol(
-    name="ShopifyCartProtocol",
-    version="0.3.0",
-)
-
-SUPPORTED_ACTIONS = [
-    "connect_shopify", "check_connection", "complete_auth",
-    "create_cart", "add_lines", "update_lines", "remove_lines",
-    "update_buyer_identity", "update_attributes", "get_cart",
-]
-
-# Actions that don't require an active Shopify connection
-AUTH_ACTIONS = {"connect_shopify", "check_connection", "complete_auth"}
+chat_protocol = Protocol(spec=chat_protocol_spec)
 
 
-@shopify_protocol.on_message(ShopifyRequest, replies=ShopifyResponse)
-async def handle_shopify_request(ctx: Context, sender: str, msg: ShopifyRequest):
-    """Route inbound requests to the appropriate cart handler."""
-    ctx.logger.info(f"Received '{msg.action}' request from {sender}")
+@chat_protocol.on_message(ChatMessage)
+async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
+    """Handle an incoming chat message from ASI1."""
+    await ctx.send(
+        sender,
+        ChatAcknowledgement(
+            timestamp=datetime.now(timezone.utc),
+            acknowledged_msg_id=msg.msg_id,
+        ),
+    )
 
-    handler = _HANDLERS.get(msg.action)
-    if not handler:
-        await ctx.send(sender, ShopifyResponse(
-            success=False,
-            action=msg.action,
-            error=f"Unknown action: {msg.action!r}. Supported: {', '.join(SUPPORTED_ACTIONS)}",
-        ))
+    # Extract text content
+    text = ""
+    for item in msg.content:
+        if isinstance(item, TextContent):
+            text += item.text
+
+    if not text.strip():
+        await _reply(ctx, sender, "Please send a text message.")
         return
 
-    # Auth actions don't need a connection check
-    if msg.action in AUTH_ACTIONS:
-        await handler(ctx, sender, msg)
-        return
+    ctx.logger.info(f"Chat from {sender}: {text[:80]}")
 
-    # All cart actions require an authenticated Shopify connection
+    # ── OAuth gate ──────────────────────────────────────────────────────
     conn = get_connection(sender)
+
+    # If there's a pending connection request, try to complete it
+    if conn and conn.connection_request and not conn.is_authenticated():
+        if conn.complete_auth(timeout=5):
+            ctx.logger.info(f"OAuth completed for {sender}")
+        else:
+            await _reply(
+                ctx,
+                sender,
+                "Your Shopify authentication is still pending. "
+                "Please complete the OAuth flow at the link I sent earlier, "
+                "then send your message again.",
+            )
+            return
+
+    # If no connection at all, initiate OAuth
     if not conn or not conn.is_authenticated():
-        await ctx.send(sender, ShopifyResponse(
-            success=False,
-            action=msg.action,
-            error=(
-                "Shopify account not connected. "
-                "Send action='connect_shopify' first to link your account."
-            ),
-        ))
+        conn = get_or_create_connection(sender)
+        try:
+            redirect_url = conn.initiate_auth()
+            await _reply(
+                ctx,
+                sender,
+                f"You need to connect your Shopify account first.\n\n"
+                f"Please visit this link to authorize:\n{redirect_url}\n\n"
+                f"Once done, send your message again.",
+            )
+        except RuntimeError as exc:
+            await _reply(
+                ctx, sender, f"Failed to start Shopify authentication: {exc}"
+            )
         return
 
-    await handler(ctx, sender, msg)
-
-
-# ── Action handlers ──────────────────────────────────────────────────────────
-
-async def _handle_create_cart(ctx: Context, sender: str, msg: ShopifyRequest):
+    # ── Process via Gemini + Composio tools ──────────────────────────────
     try:
-        cart = create_cart(
-            lines=msg.lines,
-            buyer_identity=msg.buyer_identity or None,
-            attributes=msg.attributes or None,
-            note=msg.note or None,
+        response_text = await process_message(sender, text, conn)
+        await _reply(ctx, sender, response_text)
+    except Exception as exc:
+        ctx.logger.error(f"LLM processing failed for {sender}: {exc}")
+        await _reply(
+            ctx, sender, f"Something went wrong processing your request: {exc}"
         )
-        await ctx.send(sender, ShopifyResponse(
-            success=True, action="create_cart", data=cart,
-        ))
-    except StorefrontAPIError as exc:
-        ctx.logger.error(f"create_cart failed: {exc}")
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="create_cart", error=str(exc),
-        ))
 
 
-async def _handle_add_lines(ctx: Context, sender: str, msg: ShopifyRequest):
-    if not msg.cart_id:
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="add_lines", error="cart_id is required",
-        ))
-        return
-    try:
-        cart = add_lines(msg.cart_id, msg.lines)
-        await ctx.send(sender, ShopifyResponse(
-            success=True, action="add_lines", data=cart,
-        ))
-    except StorefrontAPIError as exc:
-        ctx.logger.error(f"add_lines failed: {exc}")
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="add_lines", error=str(exc),
-        ))
+@chat_protocol.on_message(ChatAcknowledgement)
+async def handle_ack(ctx: Context, sender: str, msg: ChatAcknowledgement):
+    pass
 
 
-async def _handle_update_lines(ctx: Context, sender: str, msg: ShopifyRequest):
-    if not msg.cart_id:
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="update_lines", error="cart_id is required",
-        ))
-        return
-    try:
-        cart = update_lines(msg.cart_id, msg.lines)
-        await ctx.send(sender, ShopifyResponse(
-            success=True, action="update_lines", data=cart,
-        ))
-    except StorefrontAPIError as exc:
-        ctx.logger.error(f"update_lines failed: {exc}")
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="update_lines", error=str(exc),
-        ))
-
-
-async def _handle_remove_lines(ctx: Context, sender: str, msg: ShopifyRequest):
-    if not msg.cart_id:
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="remove_lines", error="cart_id is required",
-        ))
-        return
-    try:
-        cart = remove_lines(msg.cart_id, msg.line_ids)
-        await ctx.send(sender, ShopifyResponse(
-            success=True, action="remove_lines", data=cart,
-        ))
-    except StorefrontAPIError as exc:
-        ctx.logger.error(f"remove_lines failed: {exc}")
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="remove_lines", error=str(exc),
-        ))
-
-
-async def _handle_update_buyer_identity(ctx: Context, sender: str, msg: ShopifyRequest):
-    if not msg.cart_id:
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="update_buyer_identity", error="cart_id is required",
-        ))
-        return
-    try:
-        cart = update_buyer_identity(msg.cart_id, msg.buyer_identity)
-        await ctx.send(sender, ShopifyResponse(
-            success=True, action="update_buyer_identity", data=cart,
-        ))
-    except StorefrontAPIError as exc:
-        ctx.logger.error(f"update_buyer_identity failed: {exc}")
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="update_buyer_identity", error=str(exc),
-        ))
-
-
-async def _handle_update_attributes(ctx: Context, sender: str, msg: ShopifyRequest):
-    if not msg.cart_id:
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="update_attributes", error="cart_id is required",
-        ))
-        return
-    try:
-        cart = update_attributes(msg.cart_id, msg.attributes)
-        await ctx.send(sender, ShopifyResponse(
-            success=True, action="update_attributes", data=cart,
-        ))
-    except StorefrontAPIError as exc:
-        ctx.logger.error(f"update_attributes failed: {exc}")
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="update_attributes", error=str(exc),
-        ))
-
-
-async def _handle_get_cart(ctx: Context, sender: str, msg: ShopifyRequest):
-    if not msg.cart_id:
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="get_cart", error="cart_id is required",
-        ))
-        return
-    try:
-        cart = get_cart(msg.cart_id)
-        await ctx.send(sender, ShopifyResponse(
-            success=True, action="get_cart", data=cart,
-        ))
-    except StorefrontAPIError as exc:
-        ctx.logger.error(f"get_cart failed: {exc}")
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="get_cart", error=str(exc),
-        ))
-
-
-_HANDLERS = {
-    "connect_shopify": handle_connect_shopify,
-    "complete_auth": handle_complete_auth,
-    "check_connection": handle_check_connection,
-    "create_cart": _handle_create_cart,
-    "add_lines": _handle_add_lines,
-    "update_lines": _handle_update_lines,
-    "remove_lines": _handle_remove_lines,
-    "update_buyer_identity": _handle_update_buyer_identity,
-    "update_attributes": _handle_update_attributes,
-    "get_cart": _handle_get_cart,
-}
+async def _reply(ctx: Context, sender: str, text: str):
+    """Send a text reply back to the sender."""
+    await ctx.send(
+        sender,
+        ChatMessage(
+            timestamp=datetime.now(timezone.utc),
+            msg_id=uuid4(),
+            content=[TextContent(type="text", text=text)],
+        ),
+    )

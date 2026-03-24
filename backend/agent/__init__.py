@@ -1,7 +1,5 @@
-from .chat_protocol import shopify_protocol, ShopifyRequest, ShopifyResponse
+from .chat_protocol import chat_protocol
 
 __all__ = [
-    "shopify_protocol",
-    "ShopifyRequest",
-    "ShopifyResponse",
+    "chat_protocol",
 ]

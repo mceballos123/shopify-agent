@@ -1,20 +1,22 @@
 """
 Composio-powered Shopify OAuth connection manager.
+
 Manages per-user Shopify authentication via Composio's connected_accounts API.
 Each user (identified by their ASI1 sender address) gets their own connection.
+
+Usage:
+    conn = ShopifyConnection(user_id="user123", auth_config_id="cfg_xxx")
+    url = conn.initiate_auth()        # returns redirect URL for user
+    ok  = conn.complete_auth()         # polls until OAuth completes
+    conn.is_authenticated()            # True once connected
+    tools = conn.get_tools()           # Composio tool definitions for SHOPIFY
 """
 
 import os
-import sys
 from typing import Optional
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from composio import Composio
 from dotenv import load_dotenv
-from uagents import Context
-
-from models import ShopifyRequest, ShopifyResponse
 
 load_dotenv()
 
@@ -97,73 +99,3 @@ def get_or_create_connection(user_id: str) -> ShopifyConnection:
 def get_connection(user_id: str) -> Optional[ShopifyConnection]:
     """Return the connection for *user_id* if it exists, else None."""
     return _connections.get(user_id)
-
-
-# ── uAgent auth handlers ──────────────────────────────────────────────────
-
-async def handle_connect_shopify(ctx: Context, sender: str, msg: ShopifyRequest):
-    """Initiate Shopify OAuth — returns a redirect URL for the user."""
-    conn = get_or_create_connection(sender)
-    if conn.is_authenticated():
-        await ctx.send(sender, ShopifyResponse(
-            success=True,
-            action="connect_shopify",
-            data={"message": "Already connected to Shopify."},
-        ))
-        return
-    try:
-        redirect_url = conn.initiate_auth()
-        ctx.logger.info(f"Shopify auth initiated for {sender}: {redirect_url}")
-        await ctx.send(sender, ShopifyResponse(
-            success=True,
-            action="connect_shopify",
-            redirect_url=redirect_url,
-            data={"message": "Visit the URL to connect your Shopify account."},
-        ))
-    except RuntimeError as exc:
-        ctx.logger.error(f"connect_shopify failed: {exc}")
-        await ctx.send(sender, ShopifyResponse(
-            success=False, action="connect_shopify", error=str(exc),
-        ))
-
-
-async def handle_complete_auth(ctx: Context, sender: str, msg: ShopifyRequest):
-    """Poll Composio to see if the user finished OAuth."""
-    conn = get_connection(sender)
-    if not conn:
-        await ctx.send(sender, ShopifyResponse(
-            success=False,
-            action="complete_auth",
-            error="No pending connection. Send 'connect_shopify' first.",
-        ))
-        return
-    if conn.is_authenticated():
-        await ctx.send(sender, ShopifyResponse(
-            success=True,
-            action="complete_auth",
-            data={"message": "Already authenticated."},
-        ))
-        return
-    if conn.complete_auth():
-        await ctx.send(sender, ShopifyResponse(
-            success=True,
-            action="complete_auth",
-            data={"message": "Shopify account connected successfully!"},
-        ))
-    else:
-        await ctx.send(sender, ShopifyResponse(
-            success=False,
-            action="complete_auth",
-            error="Authentication not completed yet. Please finish the OAuth flow and try again.",
-        ))
-
-
-async def handle_check_connection(ctx: Context, sender: str, msg: ShopifyRequest):
-    """Check whether the sender has an active Shopify connection."""
-    conn = get_connection(sender)
-    connected = conn.is_authenticated() if conn else False
-    await ctx.send(sender, ShopifyResponse(
-        success=True,
-        action="check_connection",
-        data={"connected": connected},
-    ))
