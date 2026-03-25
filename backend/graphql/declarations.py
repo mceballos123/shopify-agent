@@ -1,7 +1,7 @@
 """
-Gemini function declarations for Storefront GraphQL tools.
+OpenAI function declarations for Storefront GraphQL tools.
 
-These schemas tell Gemini what tools are available and how to call them.
+These schemas tell the LLM what tools are available and how to call them.
 Kept separate from the tool implementations for readability.
 """
 

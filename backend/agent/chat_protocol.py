@@ -2,16 +2,16 @@
 ASI1 Chat protocol for the Shopify Cart Agent.
 
 Handles natural-language messages from ASI1 users via the standard chat
-protocol. Routes through Gemini + Composio Shopify tools after ensuring
+protocol. Routes through OpenAI + Composio Shopify tools after ensuring
 the user has authenticated via OAuth.
 
 Flow:
   1. User sends a ChatMessage from ASI1
   2. Agent checks Composio OAuth status for the sender
   3. If not connected → initiates OAuth, returns auth link
-  4. If connected → passes message to Gemini (llm_handler) which
+  4. If connected → passes message to OpenAI (llm_handler) which
      dynamically calls Composio Shopify tools as needed
-  5. Returns Gemini's response as a ChatMessage
+  5. Returns OpenAI's response as a ChatMessage
 """
 
 import sys
@@ -93,7 +93,7 @@ async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
             )
         return
 
-    # ── Process via Gemini + Composio tools ──────────────────────────────
+    # ── Process via OpenAI + Composio tools ──────────────────────────────
     try:
         response_text = await process_message(sender, text, conn)
         await _reply(ctx, sender, response_text)

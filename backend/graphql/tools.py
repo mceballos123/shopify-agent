@@ -1,9 +1,9 @@
 """
-Storefront GraphQL operations exposed as Gemini-callable tools.
+Storefront GraphQL operations exposed as LLM-callable tools.
 
 Each function wraps a Storefront API GraphQL operation. TOOL_EXECUTORS
-maps tool names to their implementation. Gemini function declarations
-live in declarations.py.
+maps tool names to their implementation. Function declarations for
+OpenAI live in declarations.py.
 """
 
 from graphql.client import execute_graphql

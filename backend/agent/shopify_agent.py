@@ -24,10 +24,10 @@ load_dotenv()
 
 AGENT_SEED = os.getenv("SHOPIFY_AGENT_SEED", "shopify-agent-default-seed")
 AGENT_PORT = int(os.getenv("SHOPIFY_AGENT_PORT", "8001"))
-AGENT_ENDPOINT = os.getenv(
-    "SHOPIFY_AGENT_ENDPOINT",
-    f"http://localhost:{AGENT_PORT}/submit",
-)
+#AGENT_ENDPOINT = os.getenv(
+ #   "SHOPIFY_AGENT_ENDPOINT",
+  #  f"http://localhost:{AGENT_PORT}/submit",
+#)
 
 HTTP_PORT = int(os.getenv("HTTP_PORT", "8000"))
 
@@ -35,7 +35,7 @@ shopify_agent = Agent(
     name="ShopifyCartAgent",
     seed=AGENT_SEED,
     port=AGENT_PORT,
-    endpoint=[AGENT_ENDPOINT],
+    #endpoint=[AGENT_ENDPOINT],
     mailbox=True,
 )
 
@@ -48,6 +48,7 @@ async def on_startup(ctx: Context):
         f"Shopify Cart Agent started — "
         f"name={ctx.agent.name}  address={ctx.agent.address}"
     )
+    ctx.logger.info(f"Agent address: {ctx.agent.address}")
     ctx.logger.info(f"Agent listening on port {AGENT_PORT}")
 
 

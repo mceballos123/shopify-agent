@@ -1,8 +1,5 @@
-import os
-
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from fastapi.templating import Jinja2Templates
 
 from pydantic import BaseModel
 
@@ -14,10 +11,6 @@ from agent.session_manager import (
 from agent.llm_handler import process_message
 
 app = FastAPI(title="Shopify Agent API")
-
-_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-templates = Jinja2Templates(directory=os.path.join(_BASE_DIR, "templates"))
-
 
 # ── OAuth + Chat (HTTP) ───────────────────────────────────────────────────────
 
@@ -61,7 +54,7 @@ def auth_initiate(request: Request):
 
 @app.post("/api/chat")
 async def chat_endpoint(body: ChatRequest, request: Request):
-    """Send a message to the Gemini-powered Shopify assistant.
+    """Send a message to the OpenAI-powered Shopify assistant.
 
     Requires an active OAuth session — returns 401 with instructions if not.
     """
@@ -84,22 +77,6 @@ async def chat_endpoint(body: ChatRequest, request: Request):
             {"detail": f"Something went wrong: {exc}"},
             status_code=500,
         )
-
-
-# ── UI ───────────────────────────────────────────────────────────────────────
-
-@app.get("/checkout")
-def checkout_page(request: Request):
-    store_domain = os.getenv("SHOPIFY_STORE_DOMAIN", "")
-    return templates.TemplateResponse(
-        "checkout.html",
-        {"request": request, "store_domain": store_domain},
-    )
-
-
-@app.get("/test")
-def test_dashboard(request: Request):
-    return templates.TemplateResponse("test_dashboard.html", {"request": request})
 
 
 @app.get("/health")

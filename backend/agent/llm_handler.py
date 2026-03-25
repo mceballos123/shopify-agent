@@ -1,15 +1,15 @@
 """
-Gemini LLM handler with Storefront + Composio Shopify tools and stateful sessions.
+OpenAI LLM handler with Storefront + Composio Shopify tools and stateful sessions.
 
 Manages per-user conversation history and processes natural-language
-messages through Gemini, which can call:
+messages through OpenAI, which can call:
   - Storefront tools (browse products, manage cart) via graphql/tools.py
   - Composio Shopify tools (OAuth-gated admin actions) dynamically
 """
 
 import os
 import json
-import google.generativeai as genai
+from openai import OpenAI
 from dotenv import load_dotenv
 
 from graphql.declarations import TOOL_DECLARATIONS as STOREFRONT_TOOLS
@@ -17,7 +17,9 @@ from graphql.tools import TOOL_EXECUTORS
 
 load_dotenv()
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 
 SHOPIFY_PROMPT = """
 You are a Shopify shopping assistant agent powered by Fetch.ai.
@@ -46,7 +48,7 @@ _sessions: dict[str, list] = {}
 
 
 def get_history(user_id: str) -> list:
-    """Return stored Gemini conversation history for a user."""
+    """Return stored conversation history for a user."""
     return _sessions.get(user_id, [])
 
 
@@ -57,23 +59,33 @@ def clear_history(user_id: str) -> None:
 
 # ── Tool merging: Storefront + Composio ───────────────────────────────────
 
-def _build_gemini_tools(composio_tools: list | None) -> list:
-    """Merge storefront tool declarations with Composio tool declarations."""
-    declarations = list(STOREFRONT_TOOLS)
+def _build_openai_tools(composio_tools: list | None) -> list:
+    """Merge storefront tool declarations with Composio tool declarations into OpenAI format."""
+    tools = []
+
+    for decl in STOREFRONT_TOOLS:
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": decl["name"],
+                "description": decl.get("description", ""),
+                "parameters": decl.get("parameters", {"type": "object", "properties": {}}),
+            },
+        })
 
     if composio_tools:
         for tool in composio_tools:
             func = tool.get("function", tool)
-            decl = {
-                "name": func["name"],
-                "description": func.get("description", ""),
-            }
-            params = func.get("parameters")
-            if params:
-                decl["parameters"] = params
-            declarations.append(decl)
+            tools.append({
+                "type": "function",
+                "function": {
+                    "name": func["name"],
+                    "description": func.get("description", ""),
+                    "parameters": func.get("parameters", {"type": "object", "properties": {}}),
+                },
+            })
 
-    return [{"function_declarations": declarations}]
+    return tools
 
 
 # ── Tool execution routing ────────────────────────────────────────────────
@@ -102,19 +114,8 @@ def _execute_tool(composio_client, user_id: str, name: str, args: dict) -> dict:
 
 # ── Main message processing ───────────────────────────────────────────────
 
-def _has_function_call(response) -> bool:
-    """Check whether a Gemini response contains at least one function call."""
-    try:
-        for part in response.candidates[0].content.parts:
-            if part.function_call and part.function_call.name:
-                return True
-    except (IndexError, AttributeError):
-        pass
-    return False
-
-
 async def process_message(user_id: str, text: str, connection) -> str:
-    """Send a user message through Gemini with Storefront + Composio tools.
+    """Send a user message through OpenAI with Storefront + Composio tools.
 
     Args:
         user_id: The sender's identifier (used for session + Composio entity).
@@ -125,46 +126,52 @@ async def process_message(user_id: str, text: str, connection) -> str:
         The assistant's text response.
     """
     composio_tools = connection.get_tools()
-    gemini_tools = _build_gemini_tools(composio_tools)
-
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        tools=gemini_tools,
-        system_instruction=SHOPIFY_PROMPT,
-    )
+    openai_tools = _build_openai_tools(composio_tools)
 
     history = get_history(user_id)
-    chat = model.start_chat(history=history)
 
-    response = chat.send_message(text)
+    # Build messages: system prompt + history + new user message
+    messages = [{"role": "system", "content": SHOPIFY_PROMPT}]
+    messages.extend(history)
+    messages.append({"role": "user", "content": text})
 
-    # Tool-call loop: keep going until Gemini returns plain text
-    while _has_function_call(response):
-        tool_responses = []
-        for part in response.candidates[0].content.parts:
-            if not part.function_call or not part.function_call.name:
-                continue
-            fc = part.function_call
+    # Tool-call loop: keep going until OpenAI returns a plain text response
+    while True:
+        response = client.chat.completions.create(
+            model=MODEL,
+            messages=messages,
+            tools=openai_tools if openai_tools else None,
+        )
+
+        choice = response.choices[0]
+        assistant_message = choice.message
+
+        # Append the assistant's message to the conversation
+        messages.append(assistant_message.model_dump(exclude_none=True))
+
+        # If no tool calls, we're done
+        if not assistant_message.tool_calls:
+            break
+
+        # Execute each tool call and append results
+        for tool_call in assistant_message.tool_calls:
+            name = tool_call.function.name
+            args = json.loads(tool_call.function.arguments) if tool_call.function.arguments else {}
+
             result = _execute_tool(
                 connection.composio,
                 user_id,
-                fc.name,
-                dict(fc.args) if fc.args else {},
-            )
-            tool_responses.append(
-                genai.protos.Part(
-                    function_response=genai.protos.FunctionResponse(
-                        name=fc.name,
-                        response={"result": json.dumps(result)},
-                    )
-                )
+                name,
+                args,
             )
 
-        response = chat.send_message(
-            genai.protos.Content(parts=tool_responses)
-        )
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tool_call.id,
+                "content": json.dumps(result),
+            })
 
-    # Persist updated history so sessions survive page refreshes
-    _sessions[user_id] = list(chat.history)
+    # Persist history (skip the system prompt)
+    _sessions[user_id] = messages[1:]
 
-    return response.text
+    return assistant_message.content or ""
