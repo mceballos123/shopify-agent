@@ -102,10 +102,10 @@ def _execute_tool(composio_client, user_id: str, name: str, args: dict) -> dict:
 
     # Composio tools (dynamic Shopify admin actions)
     try:
-        result = composio_client.actions.execute(
-            action=name,
-            params=args,
-            entity_id=user_id,
+        result = composio_client.tools.execute(
+            slug=name,
+            arguments=args,
+            user_id=user_id,
         )
         return {"success": True, "data": result}
     except Exception as exc:

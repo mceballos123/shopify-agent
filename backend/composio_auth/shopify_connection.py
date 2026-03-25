@@ -29,6 +29,7 @@ class ShopifyConnection:
     def __init__(self, user_id: str, auth_config_id: str | None = None):
         self.user_id = user_id
         self.auth_config_id = auth_config_id or os.getenv("SHOPIFY_AUTH_CONFIG_ID", "")
+        self.store_subdomain = os.getenv("SHOPIFY_STORE_DOMAIN", "").replace(".myshopify.com", "")
         self.composio = composio_client
         self.connected_account = None
         self.connection_request = None
@@ -47,6 +48,14 @@ class ShopifyConnection:
             self.connection_request = self.composio.connected_accounts.initiate(
                 user_id=self.user_id,
                 auth_config_id=self.auth_config_id,
+                config={
+                    "auth_scheme": "OAUTH2",
+                    "val": {
+                        "subdomain": self.store_subdomain,
+                        "shop": self.store_subdomain,
+                        "status": "INITIALIZING",
+                    },
+                },
             )
             return self.connection_request.redirect_url
         except Exception as exc:

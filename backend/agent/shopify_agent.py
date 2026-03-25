@@ -11,7 +11,6 @@ Starts the FastAPI server (HTTP routes, UI) and the uAgent
 
 import os
 import sys
-import uvicorn
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -24,18 +23,11 @@ load_dotenv()
 
 AGENT_SEED = os.getenv("SHOPIFY_AGENT_SEED", "shopify-agent-default-seed")
 AGENT_PORT = int(os.getenv("SHOPIFY_AGENT_PORT", "8001"))
-#AGENT_ENDPOINT = os.getenv(
- #   "SHOPIFY_AGENT_ENDPOINT",
-  #  f"http://localhost:{AGENT_PORT}/submit",
-#)
-
-HTTP_PORT = int(os.getenv("HTTP_PORT", "8000"))
 
 shopify_agent = Agent(
     name="ShopifyCartAgent",
     seed=AGENT_SEED,
     port=AGENT_PORT,
-    #endpoint=[AGENT_ENDPOINT],
     mailbox=True,
 )
 
@@ -58,8 +50,8 @@ async def on_shutdown(ctx: Context):
 
 
 def main():
-    """Run the FastAPI server with the uAgent protocol included."""
-    uvicorn.run(app, host="0.0.0.0", port=HTTP_PORT, log_level="info")
+    """Run the uAgent (with its event loop) and mount FastAPI on it."""
+    shopify_agent.run()
 
 
 if __name__ == "__main__":
