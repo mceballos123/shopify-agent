@@ -5,8 +5,8 @@ Run:
     cd backend
     python -m agent.shopify_agent
 
-Starts the FastAPI server (HTTP routes, UI) and the uAgent
-(ASI1 Chat protocol with Gemini + Composio) in a single process.
+Starts the FastAPI server (HTTP routes) and the uAgent
+(ASI1 Chat protocol with OpenAI + Storefront API) in a single process.
 """
 
 import os
