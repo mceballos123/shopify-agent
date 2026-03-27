@@ -9,7 +9,7 @@ from .mutations import (
     CART_BUYER_IDENTITY_UPDATE_MUTATION,
     CART_ATTRIBUTES_UPDATE_MUTATION,
 )
-from .queries import CART_QUERY, PRODUCTS_QUERY
+from .queries import CART_QUERY, PRODUCTS_QUERY, SHOP_QUERY
 
 __all__ = [
     "execute_graphql",
@@ -24,4 +24,5 @@ __all__ = [
     "CART_ATTRIBUTES_UPDATE_MUTATION",
     "CART_QUERY",
     "PRODUCTS_QUERY",
+    "SHOP_QUERY",
 ]

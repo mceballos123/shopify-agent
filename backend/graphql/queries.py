@@ -1,5 +1,14 @@
 from .mutations import CART_FRAGMENT
 
+SHOP_QUERY = """
+query getShop {
+  shop {
+    name
+    description
+  }
+}
+"""
+
 CART_QUERY = (
     CART_FRAGMENT
     + """
@@ -21,11 +30,19 @@ query getProducts($first: Int!, $after: String) {
         title
         description
         handle
+        featuredImage {
+          url(transform: { maxWidth: 400, maxHeight: 400 })
+          altText
+          width
+          height
+        }
         images(first: 5) {
           edges {
             node {
-              url
+              url(transform: { maxWidth: 400, maxHeight: 400 })
               altText
+              width
+              height
             }
           }
         }

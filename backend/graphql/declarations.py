@@ -7,6 +7,18 @@ Kept separate from the tool implementations for readability.
 
 TOOL_DECLARATIONS = [
     {
+        "name": "get_shop_info",
+        "description": (
+            "Fetch the store's name and description from Shopify. "
+            "Use this to greet the user with the actual store name. "
+            "Call this once at the start of a conversation before showing products."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+        },
+    },
+    {
         "name": "get_products",
         "description": (
             "Fetch products from the store catalog. Returns product titles, "

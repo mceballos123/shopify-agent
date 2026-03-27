@@ -15,10 +15,16 @@ from graphql.mutations import (
     CART_BUYER_IDENTITY_UPDATE_MUTATION,
     CART_ATTRIBUTES_UPDATE_MUTATION,
 )
-from graphql.queries import CART_QUERY, PRODUCTS_QUERY
+from graphql.queries import CART_QUERY, PRODUCTS_QUERY, SHOP_QUERY
 
 
 # ── Tool implementations ─────────────────────────────────────────────────────
+
+def get_shop_info() -> dict:
+    """Fetch the store name and description from Shopify."""
+    data = execute_graphql(SHOP_QUERY, {})
+    return data.get("shop", {})
+
 
 def get_products(first: int = 20, after: str | None = None) -> dict:
     """Fetch products from the agent's store."""
@@ -86,6 +92,7 @@ def update_attributes(cart_id: str, attributes: list) -> dict:
 # ── Name -> function mapping for execution ────────────────────────────────────
 
 TOOL_EXECUTORS = {
+    "get_shop_info": get_shop_info,
     "get_products": get_products,
     "get_cart": get_cart,
     "create_cart": create_cart,
